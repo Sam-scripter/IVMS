@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "386339922372",
+    "project_id": "ivms-project-19f50",
+    "storage_bucket": "ivms-project-19f50.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:386339922372:android:242b63a900c40598018491",
+        "android_client_info": {
+          "package_name": "com.example.integrated_vehicle_management_system"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAC98ZGtIsOwDbrHT9C8JcOjokMAbOeZSU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
