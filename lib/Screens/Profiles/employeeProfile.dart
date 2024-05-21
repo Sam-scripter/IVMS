@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -46,8 +48,50 @@ class EmployeeProfile extends StatefulWidget {
 
 class _EmployeeProfileState extends State<EmployeeProfile> {
   Uint8List? _image;
+  final currentUser = FirebaseAuth.instance.currentUser!;
+  String position = '';
+  String vehicleId = '';
+  List<Widget> myTabViews = [];
 
   final employeeCollection = FirebaseFirestore.instance.collection('employees');
+
+  Future<void> fetchVehicleId() async {
+    DocumentReference documentReference = FirebaseFirestore.instance
+        .collection('employees')
+        .doc(currentUser.email);
+    DocumentSnapshot snapshot = await documentReference.get();
+    if (snapshot.exists) {
+      var value = snapshot.data() as Map<String, dynamic>;
+      setState(() {
+        vehicleId = value['vehicleId'] ?? '';
+      });
+    }
+  }
+
+  void _fetchImageFromFirestore() async {
+    try {
+      // Replace 'images' with your Firestore collection name and document ID
+      var snapshot = await FirebaseFirestore.instance
+          .collection('employees')
+          .doc(widget.employeeEmail)
+          .get();
+
+      if (snapshot.exists) {
+        // Get the base64 string from Firestore
+        String base64Image = snapshot.data()!['image'];
+
+        // Update the UI
+        setState(() {
+          // Convert base64 string to Uint8List
+          _image = base64Decode(base64Image);
+        });
+      } else {
+        print('Document does not exist');
+      }
+    } catch (e) {
+      print('Error fetching image: $e');
+    }
+  }
 
   Future<void> editField(String field) async {
     String newvalue = '';
@@ -98,10 +142,233 @@ class _EmployeeProfileState extends State<EmployeeProfile> {
     }
   }
 
+  Future<void> fetchPosition() async {
+    DocumentReference documentReference = FirebaseFirestore.instance
+        .collection('employees')
+        .doc(currentUser.email);
+    DocumentSnapshot snapshot = await documentReference.get();
+    if (snapshot.exists) {
+      var value = snapshot.data() as Map<String, dynamic>;
+      setState(() {
+        position = value['position'];
+      });
+    }
+  }
+
+  void setTabViews() {
+    setState(() {
+      myTabViews = [
+        SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ProfileTextBox1(
+                  title: 'Name',
+                  titleValue:
+                      "${widget.employeeFirstName} ${widget.employeeSecondName} ",
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                ProfileTextBox1(
+                  title: 'Email',
+                  titleValue: widget.employeeEmail,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                ProfileTextBox1(
+                  title: 'Phone',
+                  titleValue: widget.employeeMobileNumber,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                ProfileTextBox1(
+                  title: 'ID Number',
+                  titleValue: widget.employeeIdNumber,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                ProfileTextBox1(
+                  title: 'Home Address',
+                  titleValue: widget.employeeHomeAddress,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                ProfileTextBox1(
+                  title: 'Gender',
+                  titleValue: widget.employeeGender,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                ProfileTextBox1(
+                  title: 'Date Of Birth',
+                  titleValue: widget.employeeDOB,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+              ],
+            ),
+          ),
+        ),
+        SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ProfileTextBox1(
+                  title: 'Organization Number',
+                  titleValue: widget.employeeOrganizationNumber,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                ProfileTextBox1(
+                  title: 'Role',
+                  titleValue: widget.employeeRole,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                ProfileTextBox1(
+                  title: 'Position',
+                  titleValue: widget.employeePosition,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                ProfileTextBox1(
+                  title: 'Department',
+                  titleValue: widget.employeeDepartment,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                ProfileTextBox1(
+                  title: 'Date Of Hire',
+                  titleValue: widget.employeeDOH,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    });
+
+    if (position == 'Driver') {
+      setState(() {
+        myTabs.add(Tab(
+          child: Text('Vehicle Details'),
+        ));
+        myTabViews.add(
+          StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('vehicles')
+                  .doc(vehicleId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  var vehicleData =
+                      snapshot.data!.data() as Map<String, dynamic>;
+                  return SingleChildScrollView(
+                      child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 15),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ProfileTextBox1(
+                            title: 'Make and Model',
+                            titleValue: vehicleData['makeAndModel']),
+                        const SizedBox(
+                          height: 18,
+                        ),
+                        ProfileTextBox1(
+                            title: 'Vehicle number Plate',
+                            titleValue: vehicleData['licensePlatenumber']),
+                        const SizedBox(
+                          height: 18,
+                        ),
+                        ProfileTextBox1(
+                            title: 'Fuel Type',
+                            titleValue: vehicleData['fuelType']),
+                        const SizedBox(
+                          height: 18,
+                        ),
+                        ProfileTextBox1(
+                            title: 'Fuel Consumption',
+                            titleValue: vehicleData['fuelConsumption']),
+                        const SizedBox(
+                          height: 18,
+                        ),
+                        ProfileTextBox1(
+                            title: 'Insurance Provider',
+                            titleValue: vehicleData['insuranceProvider']),
+                        const SizedBox(
+                          height: 18,
+                        ),
+                        ProfileTextBox1(
+                            title: 'Department',
+                            titleValue: vehicleData['department']),
+                        const SizedBox(
+                          height: 18,
+                        ),
+                        const SizedBox(
+                          height: 18,
+                        ),
+                      ],
+                    ),
+                  ));
+                }
+                return Container();
+              }),
+        );
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchPosition();
+    fetchVehicleId();
+    _fetchImageFromFirestore();
+    setTabViews();
+  }
+
+  List<Tab> myTabs = [
+    Tab(
+      child: Text(
+        'User Details',
+        style: GoogleFonts.lato(),
+      ),
+    ),
+    Tab(
+      child: Text(
+        'Organization Details',
+        style: GoogleFonts.lato(),
+      ),
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: position == 'Driver' ? 3 : 2,
       child: Scaffold(
         appBar: AppBar(
           title: Text(
@@ -119,24 +386,52 @@ class _EmployeeProfileState extends State<EmployeeProfile> {
                 child: Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 5.0),
+                      padding: const EdgeInsets.only(bottom: 5.0, top: 17),
                       child: Stack(
                         children: [
-                          _image != null
-                              ? CircleAvatar(
-                                  backgroundImage: MemoryImage(_image!),
-                                  backgroundColor: Colors.white60,
-                                  radius: 65,
-                                )
-                              : const CircleAvatar(
-                                  backgroundImage: null,
-                                  backgroundColor: Colors.white60,
-                                  radius: 65,
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 60,
+                          GestureDetector(
+                            onTap: () {
+                              showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return Dialog(
+                                      backgroundColor: Colors.transparent,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: InteractiveViewer(
+                                          child: _image != null
+                                              ? Image.memory(
+                                                  _image!,
+                                                  fit: BoxFit.contain,
+                                                )
+                                              : const Icon(
+                                                  Icons.person,
+                                                  size: 100,
+                                                  color: Colors.white60,
+                                                ),
+                                        ),
+                                      ),
+                                    );
+                                  });
+                            },
+                            child: _image != null
+                                ? CircleAvatar(
+                                    backgroundImage: MemoryImage(_image!),
+                                    backgroundColor: Colors.white60,
+                                    radius: 65,
+                                  )
+                                : const CircleAvatar(
+                                    backgroundImage: null,
+                                    backgroundColor: Colors.white60,
+                                    radius: 65,
+                                    child: Icon(
+                                      Icons.car_crash,
+                                      size: 60,
+                                    ),
                                   ),
-                                ),
+                          ),
                           Positioned(
                             bottom: 0,
                             left: 80,
@@ -165,147 +460,12 @@ class _EmployeeProfileState extends State<EmployeeProfile> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-              child: TabBar(indicatorColor: Colors.lightBlueAccent, tabs: [
-                Tab(
-                  child: Text(
-                    'User Details',
-                    style: GoogleFonts.lato(),
-                  ),
-                ),
-                Tab(
-                  child: Text(
-                    'Organization Details',
-                    style: GoogleFonts.lato(),
-                  ),
-                ),
-              ]),
+              child:
+                  TabBar(indicatorColor: Colors.lightBlueAccent, tabs: myTabs),
             ),
             Expanded(
               child: TabBarView(
-                children: [
-                  SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18.0, vertical: 15),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          ProfileTextBox(
-                            title: 'Name',
-                            titleValue:
-                                "${widget.employeeFirstName} ${widget.employeeSecondName} ",
-                            function: () => editField('firstName'),
-                            // "${userData['firstName']} ${userData['secondName']} "),
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                          ProfileTextBox(
-                              title: 'Email',
-                              titleValue: widget.employeeEmail,
-                              function: () => editField('emailAddress')),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                          ProfileTextBox(
-                            title: 'Phone',
-                            titleValue: widget.employeeMobileNumber,
-                            function: () => editField('mobileNumber'),
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                          ProfileTextBox(
-                            title: 'ID Number',
-                            titleValue: widget.employeeIdNumber,
-                            function: () => editField('idNumber'),
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                          ProfileTextBox(
-                            title: 'Home Address',
-                            titleValue: widget.employeeHomeAddress,
-                            function: () => editField('homeAddress'),
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                          ProfileTextBox(
-                            title: 'Gender',
-                            titleValue: widget.employeeGender,
-                            function: () => editField('gender'),
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                          ProfileTextBox(
-                            title: 'Date Of Birth',
-                            titleValue: widget.employeeDOB,
-                            function: () => editField('DOB'),
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18.0, vertical: 15),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          ProfileTextBox(
-                            title: 'Organization Number',
-                            titleValue: widget.employeeOrganizationNumber,
-                            function: () => editField('organizationNumber'),
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                          ProfileTextBox(
-                            title: 'Role',
-                            titleValue: widget.employeeRole,
-                            function: () => editField('role'),
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                          ProfileTextBox(
-                            title: 'Position',
-                            titleValue: widget.employeePosition,
-                            function: () => editField('position'),
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                          ProfileTextBox(
-                            title: 'Department',
-                            titleValue: widget.employeeDepartment,
-                            function: () => editField('department'),
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                          ProfileTextBox(
-                            title: 'Date Of Hire',
-                            titleValue: widget.employeeDOH,
-                            function: () => editField('DOH'),
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                          const SizedBox(
-                            height: 18,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                children: myTabViews,
               ),
             ),
           ],

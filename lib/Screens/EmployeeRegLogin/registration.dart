@@ -51,6 +51,9 @@ class RegisterFormState extends State<RegisterForm> {
   String genderDropdownValue = genders.first;
   String positionsDropdownValue = '0';
   String departmentsDropdownValue = '0';
+  String vehicleDropdownValue = '';
+  String selectedVehicleId = '';
+  bool _isLoading = false;
 
   Future<void> selectDateOfBirth() async {
     DateTime? _picked = await showDatePicker(
@@ -82,280 +85,195 @@ class RegisterFormState extends State<RegisterForm> {
     }
   }
 
-  // Future<void> addUserDetails(
-  //     String firstName,
-  //     String secondName,
-  //     String dob,
-  //     String doh,
-  //     String homeAddress,
-  //     String organizationNumber,
-  //     String IDnumber,
-  //     String mobileNumber,
-  //     String emailAddress,
-  //     String position,
-  //     String role,
-  //     String department) async {
-  //   await _firestore.collection('employees').add({
-  //     'firstName': firstName,
-  //     'secondName': secondName,
-  //     'dob': dob,
-  //     'doh': doh,
-  //     'homeAddress': homeAddress,
-  //     'organizationNumber': organizationNumber,
-  //     'IDnumber': IDnumber,
-  //     'mobileNumber': mobileNumber,
-  //     'emailAddress': emailAddress,
-  //     'position': position,
-  //     'role': role,
-  //     'department': department,
-  //     'timestamp': FieldValue.serverTimestamp(),
-  //   });
-  // }
-
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: _registerFormKey,
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            inputRegister(
-              text: const Text('First Name'),
-              textController: _firstNameController,
-              inputType: TextInputType.text,
-              valueValidator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the first name';
-                } else if (value.length >= 30 || value.length <= 2) {
-                  return 'Please Enter a valid First name';
-                }
-                return null;
-              },
-              onchangedValue: (value) {},
-            ),
-            inputRegister(
-              text: const Text('Second Name'),
-              textController: _secondNameController,
-              inputType: TextInputType.text,
-              valueValidator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the Second name';
-                } else if (value.length >= 30 || value.length <= 2) {
-                  return 'Please Enter a valid second name';
-                }
-                return null;
-              },
-              onchangedValue: (value) {},
-            ),
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 9, horizontal: 23.0),
-              child: TextFormField(
-                controller: _dateOfBirthController,
-                decoration: const InputDecoration(
-                  label: Text('Date of Birth'),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.lightBlueAccent),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.lightBlueAccent),
-                  ),
-                  filled: true,
-                  prefixIcon: Icon(Icons.calendar_today),
-                ),
-                readOnly: true,
-                onTap: () {
-                  selectDateOfBirth();
-                },
-                validator: (value) {
+    return Stack(children: [
+      Form(
+        key: _registerFormKey,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              inputRegister(
+                text: const Text('First Name'),
+                textController: _firstNameController,
+                inputType: TextInputType.text,
+                valueValidator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'please select the Date of birth';
+                    return 'Please enter the first name';
+                  } else if (value.length >= 30 || value.length <= 2) {
+                    return 'Please Enter a valid First name';
                   }
                   return null;
                 },
+                onchangedValue: (value) {},
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 23),
-              child: TextFormField(
-                controller: _dateOfHireController,
-                decoration: const InputDecoration(
-                  label: Text('Date of Hire'),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.lightBlueAccent),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.lightBlueAccent),
-                  ),
-                  filled: true,
-                  prefixIcon: Icon(Icons.calendar_today),
-                ),
-                readOnly: true,
-                onTap: () {
-                  selectDateOfHire();
-                },
-                validator: (value) {
+              inputRegister(
+                text: const Text('Second Name'),
+                textController: _secondNameController,
+                inputType: TextInputType.text,
+                valueValidator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'please select the Date of hire';
+                    return 'Please enter the Second name';
+                  } else if (value.length >= 30 || value.length <= 2) {
+                    return 'Please Enter a valid second name';
                   }
                   return null;
                 },
+                onchangedValue: (value) {},
               ),
-            ),
-            inputRegister(
-              text: const Text('Home Address'),
-              textController: _homeAddressController,
-              inputType: TextInputType.text,
-              valueValidator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the Home address';
-                } else if (value.length >= 100 || value.length <= 2) {
-                  return 'Please Enter a valid home address';
-                }
-                return null;
-              },
-              onchangedValue: (value) {},
-            ),
-            inputRegister(
-              text: const Text('Organization Number'),
-              textController: _organizationNumberController,
-              inputType: TextInputType.number,
-              valueValidator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the Organization number';
-                } else if (value.length >= 30 || value.length <= 2) {
-                  return 'Please Enter a valid organization number';
-                }
-                return null;
-              },
-              onchangedValue: (value) {},
-            ),
-            inputRegister(
-              text: const Text('ID Number'),
-              textController: _idNumberController,
-              inputType: TextInputType.number,
-              valueValidator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the ID Number';
-                } else if (value.length >= 105 || value.length <= 2) {
-                  return 'Please Enter a valid ID number';
-                }
-                return null;
-              },
-              onchangedValue: (value) {},
-            ),
-            inputRegister(
-              text: const Text('Mobile Number'),
-              textController: _mobileNumberController,
-              inputType: TextInputType.number,
-              valueValidator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the mobile number';
-                } else if (value.length >= 15 || value.length <= 2) {
-                  return 'Please Enter a valid mobile number';
-                }
-                return null;
-              },
-              onchangedValue: (value) {},
-            ),
-            inputRegister(
-              text: const Text('Email Address'),
-              textController: _emailAddressController,
-              inputType: TextInputType.emailAddress,
-              valueValidator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the Email Address';
-                } else if (value.length <= 5) {
-                  return 'Please Enter a valid email address';
-                }
-                return null;
-              },
-              onchangedValue: (emailValue) {},
-            ),
-            DropdownButton(
-                hint: const Text('Gender of Employee'),
-                isExpanded: true,
-                value: genderDropdownValue,
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 9, horizontal: 23.0),
+                child: TextFormField(
+                  controller: _dateOfBirthController,
+                  decoration: const InputDecoration(
+                    label: Text('Date of Birth'),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.lightBlueAccent),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.lightBlueAccent),
+                    ),
+                    filled: true,
+                    prefixIcon: Icon(Icons.calendar_today),
+                  ),
+                  readOnly: true,
+                  onTap: () {
+                    selectDateOfBirth();
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'please select the Date of birth';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              Padding(
                 padding:
                     const EdgeInsets.symmetric(vertical: 9, horizontal: 23),
-                items: genders.map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (String? value) {
-                  setState(() {
-                    genderDropdownValue = value!;
-                  });
-                }),
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('positions')
-                  .orderBy('timestamp', descending: false)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                List<DropdownMenuItem<String>> positions = [];
-                positions.add(
-                  const DropdownMenuItem(
-                    value: "0",
-                    child: Text('Select Position'),
+                child: TextFormField(
+                  controller: _dateOfHireController,
+                  decoration: const InputDecoration(
+                    label: Text('Date of Hire'),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.lightBlueAccent),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.lightBlueAccent),
+                    ),
+                    filled: true,
+                    prefixIcon: Icon(Icons.calendar_today),
                   ),
-                );
-
-                if (snapshot.hasData) {
-                  for (var value in snapshot.data!.docs.toList()) {
-                    String positionName = value['name'];
-                    String positionId = value.id;
-                    positions.add(DropdownMenuItem(
-                        value: positionName, child: Text(positionName)));
+                  readOnly: true,
+                  onTap: () {
+                    selectDateOfHire();
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'please select the Date of hire';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              inputRegister(
+                text: const Text('Home Address'),
+                textController: _homeAddressController,
+                inputType: TextInputType.text,
+                valueValidator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter the Home address';
+                  } else if (value.length >= 100 || value.length <= 2) {
+                    return 'Please Enter a valid home address';
                   }
-                }
-
-                return DropdownButton(
-                  focusColor: Colors.lightBlueAccent,
-                  dropdownColor: Colors.black87,
-                  hint: const Text('Position Of Employee'),
+                  return null;
+                },
+                onchangedValue: (value) {},
+              ),
+              inputRegister(
+                text: const Text('Organization Number'),
+                textController: _organizationNumberController,
+                inputType: TextInputType.number,
+                valueValidator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter the Organization number';
+                  } else if (value.length >= 30 || value.length <= 2) {
+                    return 'Please Enter a valid organization number';
+                  }
+                  return null;
+                },
+                onchangedValue: (value) {},
+              ),
+              inputRegister(
+                text: const Text('ID Number'),
+                textController: _idNumberController,
+                inputType: TextInputType.number,
+                valueValidator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter the ID Number';
+                  } else if (value.length >= 105 || value.length <= 2) {
+                    return 'Please Enter a valid ID number';
+                  }
+                  return null;
+                },
+                onchangedValue: (value) {},
+              ),
+              inputRegister(
+                text: const Text('Mobile Number'),
+                textController: _mobileNumberController,
+                inputType: TextInputType.number,
+                valueValidator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter the mobile number';
+                  } else if (value.length >= 15 || value.length <= 2) {
+                    return 'Please Enter a valid mobile number';
+                  }
+                  return null;
+                },
+                onchangedValue: (value) {},
+              ),
+              inputRegister(
+                text: const Text('Email Address'),
+                textController: _emailAddressController,
+                inputType: TextInputType.emailAddress,
+                valueValidator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter the Email Address';
+                  } else if (value.length <= 5) {
+                    return 'Please Enter a valid email address';
+                  }
+                  return null;
+                },
+                onchangedValue: (emailValue) {},
+              ),
+              DropdownButton(
+                  hint: const Text('Gender of Employee'),
                   isExpanded: true,
+                  value: genderDropdownValue,
                   padding:
                       const EdgeInsets.symmetric(vertical: 9, horizontal: 23),
-                  items: positions,
-                  onChanged: (positionsValue) {
+                  items: genders.map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (String? value) {
                     setState(() {
-                      positionsDropdownValue = positionsValue!;
+                      genderDropdownValue = value!;
                     });
-                  },
-                  value: positionsDropdownValue,
-                );
-              },
-            ),
-            DropdownButton(
-                hint: const Text('Role Of Employee'),
-                isExpanded: true,
-                value: rolesDropdownValue,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 9, horizontal: 23),
-                items: roles.map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (String? value) {
-                  setState(() {
-                    rolesDropdownValue = value!;
-                  });
-                }),
-            StreamBuilder(
+                  }),
+              StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('departments')
                     .orderBy('timestamp', descending: false)
                     .snapshots(),
                 builder: (context, snapshot) {
-                  List<DropdownMenuItem<String>> departments = [];
-                  departments.add(
+                  List<DropdownMenuItem<String>> positions = [];
+                  positions.add(
                     const DropdownMenuItem(
-                      value: '0',
+                      value: "0",
                       child: Text('Select Department'),
                     ),
                   );
@@ -363,21 +281,19 @@ class RegisterFormState extends State<RegisterForm> {
                   if (snapshot.hasData) {
                     for (var value in snapshot.data!.docs.toList()) {
                       String departmentName = value['name'];
-                      // String departmentId = value.id;
-                      departments.add(
-                        DropdownMenuItem(
-                          value: departmentName,
-                          child: Text(departmentName),
-                        ),
-                      );
+                      positions.add(DropdownMenuItem(
+                          value: departmentName, child: Text(departmentName)));
                     }
                   }
+
                   return DropdownButton(
+                    focusColor: Colors.lightBlueAccent,
+                    dropdownColor: Colors.black87,
                     hint: const Text('Department Of Employee'),
                     isExpanded: true,
                     padding:
                         const EdgeInsets.symmetric(vertical: 9, horizontal: 23),
-                    items: departments,
+                    items: positions,
                     onChanged: (departmentValue) {
                       setState(() {
                         departmentsDropdownValue = departmentValue!;
@@ -385,99 +301,263 @@ class RegisterFormState extends State<RegisterForm> {
                     },
                     value: departmentsDropdownValue,
                   );
-                }),
-            inputRegister(
-              text: const Text('Password'),
-              textController: _passwordController,
-              inputType: TextInputType.visiblePassword,
-              valueValidator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the Password';
-                } else if (value.length >= 17 || value.length <= 7) {
-                  return 'Password characters range from 8 to 16 characters';
-                }
-                return null;
-              },
-              onchangedValue: (value) {},
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 30.0),
-              child: Material(
-                borderRadius: const BorderRadius.all(Radius.circular(30.0)),
-                elevation: 5.0,
-                color: Colors.lightBlueAccent,
-                child: MaterialButton(
-                  onPressed: () async {
-                    if (_registerFormKey.currentState!.validate()) {
-                      try {
-                        UserCredential userCredential =
-                            await _auth.createUserWithEmailAndPassword(
-                                email: _emailAddressController.text,
-                                password: _passwordController.text);
-                        final bool isOnline = false;
+                },
+              ),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('departments')
+                    .where('name', isEqualTo: departmentsDropdownValue)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    // Return a loading indicator while waiting for data
+                    return CircularProgressIndicator();
+                  } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    // Return a message if no department matches the dropdown value
+                    return Text('No department found with this name');
+                  } else {
+                    // Get the reference to the department document
+                    DocumentSnapshot departmentDoc = snapshot.data!.docs.first;
 
-                        _firestore
-                            .collection('employees')
-                            .doc(userCredential.user!.email)
-                            .set({
-                          'firstName': _firstNameController.text,
-                          'secondName': _secondNameController.text,
-                          'DOB': _dateOfBirthController.text,
-                          'DOH': _dateOfHireController.text,
-                          'homeAddress': _homeAddressController.text,
-                          'organizationNumber':
-                              _organizationNumberController.text,
-                          'idNumber': _idNumberController.text,
-                          'mobileNumber': _mobileNumberController.text,
-                          'emailAddress': _emailAddressController.text,
-                          'gender': genderDropdownValue,
-                          'position': positionsDropdownValue,
-                          'role': rolesDropdownValue,
-                          'department': departmentsDropdownValue,
-                          'isOnline': isOnline,
-                          'timestamp': FieldValue.serverTimestamp(),
-                        });
+                    // Get a reference to the positions subcollection of the department
+                    CollectionReference positionsRef =
+                        departmentDoc.reference.collection('positions');
 
-                        // addUserDetails(
-                        //     _firstNameController.text,
-                        //     _secondNameController.text,
-                        //     _dateOfBirthController.text,
-                        //     _dateOfHireController.text,
-                        //     _homeAddressController.text,
-                        //     _organizationNumberController.text,
-                        //     _idNumberController.text,
-                        //     _mobileNumberController.text,
-                        //     _emailAddressController.text,
-                        //     positionsDropdownValue,
-                        //     rolesDropdownValue,
-                        //     departmentsDropdownValue);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Processing Data',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            backgroundColor: Colors.black45,
-                          ),
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: positionsRef
+                          .orderBy('name', descending: false)
+                          .snapshots(),
+                      builder: (context, positionsSnapshot) {
+                        if (positionsSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          // Return a loading indicator while waiting for position data
+                          return CircularProgressIndicator();
+                        } else if (!positionsSnapshot.hasData ||
+                            positionsSnapshot.data!.docs.isEmpty) {
+                          // Return a message if no positions found for the department
+                          return const Text(
+                              'No positions found for this department');
+                        } else {
+                          // Extract position data from snapshot
+                          List<DropdownMenuItem<String>> positionItems = [];
+                          positionItems.add(const DropdownMenuItem(
+                            value: "0",
+                            child: Text('Select Position'),
+                          ));
+                          for (var positionDoc
+                              in positionsSnapshot.data!.docs) {
+                            String positionName = positionDoc['name'];
+                            positionItems.add(DropdownMenuItem(
+                              value: positionName,
+                              child: Text(positionName),
+                            ));
+                          }
+
+                          // Return the dropdown button with position options
+                          return DropdownButton(
+                            focusColor: Colors.lightBlueAccent,
+                            dropdownColor: Colors.black87,
+                            hint: const Text('Position Of Employee'),
+                            isExpanded: true,
+                            padding: EdgeInsets.symmetric(
+                                vertical: 9, horizontal: 23),
+                            items: positionItems,
+                            onChanged: (positionsValue) {
+                              setState(() {
+                                positionsDropdownValue = positionsValue!;
+                                print(positionsDropdownValue);
+                                print(departmentsDropdownValue);
+                              });
+                            },
+                            value: positionsDropdownValue,
+                          );
+                        }
+                      },
+                    );
+                  }
+                },
+              ),
+              positionsDropdownValue == "Driver"
+                  ?
+                  // Return a StreamBuilder to fetch vehicles if the selected position is "Driver"
+                  StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('vehicles')
+                          .where('department',
+                              isEqualTo: departmentsDropdownValue)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        List<DropdownMenuItem<String>> vehicleItems = [];
+                        if (snapshot.hasData) {
+                          vehicleItems.add(const DropdownMenuItem(
+                            value: "0",
+                            child: Text('Select Vehicle'),
+                          ));
+
+                          for (var vehicleDoc in snapshot.data!.docs) {
+                            var value =
+                                vehicleDoc.data() as Map<String, dynamic>;
+                            String vehicleName = value['licensePlateNumber'];
+
+                            vehicleItems.add(DropdownMenuItem(
+                              value: vehicleName,
+                              child: Text(vehicleName),
+                            ));
+                          }
+
+                          // Ensure the selected value is valid
+                          if (vehicleDropdownValue != null &&
+                              !vehicleItems.any((item) =>
+                                  item.value == vehicleDropdownValue)) {
+                            vehicleDropdownValue = "0";
+                          }
+                        }
+
+                        return DropdownButton<String>(
+                          focusColor: Colors.lightBlueAccent,
+                          dropdownColor: Colors.black87,
+                          hint: const Text('Select Vehicle'),
+                          isExpanded: true,
+                          padding:
+                              EdgeInsets.symmetric(vertical: 9, horizontal: 23),
+                          items: vehicleItems,
+                          onChanged: (vehicleValue) {
+                            setState(() {
+                              vehicleDropdownValue = vehicleValue!;
+
+                              int selectedIndex = vehicleItems.indexWhere(
+                                (element) => element.value == vehicleValue,
+                              );
+
+                              // Adjust index by 1 due to the initial "Select Vehicle" item
+                              selectedVehicleId = selectedIndex > 0
+                                  ? snapshot.data!.docs[selectedIndex - 1].id
+                                  : '';
+                              print(
+                                  'Selected Vehicle Id is: $selectedVehicleId');
+                            });
+                          },
+                          value: vehicleDropdownValue,
                         );
-                        Navigator.pop(context);
-                      } catch (e) {
-                        print(e);
+                      },
+                    )
+                  :
+                  // Return an empty Container if the selected position is not "Driver"
+                  Container(),
+              DropdownButton(
+                  hint: const Text('Role Of Employee'),
+                  isExpanded: true,
+                  value: rolesDropdownValue,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 9, horizontal: 23),
+                  items: roles.map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (String? value) {
+                    setState(() {
+                      rolesDropdownValue = value!;
+                    });
+                  }),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 30.0),
+                child: Material(
+                  borderRadius: const BorderRadius.all(Radius.circular(30.0)),
+                  elevation: 5.0,
+                  color: Colors.lightBlueAccent,
+                  child: MaterialButton(
+                    onPressed: () async {
+                      if (_registerFormKey.currentState!.validate()) {
+                        // Dismiss the keyboard
+                        FocusScope.of(context).unfocus();
+                        setState(() {
+                          _isLoading = true;
+                        });
+                        try {
+                          UserCredential userCredential =
+                              await _auth.createUserWithEmailAndPassword(
+                            email: _emailAddressController.text,
+                            password: '12345678',
+                          );
+                          const bool isOnline = false;
+
+                          Map<String, dynamic> userData = {
+                            'firstName': _firstNameController.text,
+                            'secondName': _secondNameController.text,
+                            'DOB': _dateOfBirthController.text,
+                            'DOH': _dateOfHireController.text,
+                            'homeAddress': _homeAddressController.text,
+                            'organizationNumber':
+                                _organizationNumberController.text,
+                            'idNumber': _idNumberController.text,
+                            'mobileNumber': _mobileNumberController.text,
+                            'emailAddress': _emailAddressController.text,
+                            'gender': genderDropdownValue,
+                            'department': departmentsDropdownValue,
+                            'position': positionsDropdownValue,
+                            'role': rolesDropdownValue,
+                            'isOnline': false,
+                            'passwordSet': false, // Add this line
+                            'timestamp': FieldValue.serverTimestamp(),
+                          };
+
+                          if (positionsDropdownValue == "Driver") {
+                            userData['vehicleId'] = selectedVehicleId;
+                            userData['vehicle'] = vehicleDropdownValue;
+
+                            _firestore
+                                .collection('employees')
+                                .doc(userCredential.user!.email)
+                                .set(userData);
+
+                            await FirebaseFirestore.instance
+                                .collection('vehicles')
+                                .doc(selectedVehicleId)
+                                .update({
+                              'driver':
+                                  '${_firstNameController.text} ${_secondNameController.text}',
+                            });
+
+                            Navigator.pop(context);
+                          } else {
+                            _firestore
+                                .collection('employees')
+                                .doc(userCredential.user!.email)
+                                .set(userData);
+
+                            Navigator.pop(context);
+                          }
+                        } catch (e) {
+                          print(e);
+                        } finally {
+                          setState(() {
+                            _isLoading = false;
+                          });
+                        }
                       }
-                    }
-                  },
-                  minWidth: 320.0,
-                  height: 42.0,
-                  child: const Text(
-                    'Register',
-                    style: TextStyle(fontSize: 15),
+                    },
+                    minWidth: 320.0,
+                    height: 42.0,
+                    child: const Text(
+                      'Register',
+                      style: TextStyle(fontSize: 15),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    );
+      if (_isLoading)
+        Container(
+          color: Colors.black.withOpacity(0.7),
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+    ]);
   }
 }

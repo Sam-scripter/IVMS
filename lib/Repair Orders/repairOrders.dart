@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:integrated_vehicle_management_system/Repair%20Orders/newRepairOrder.dart';
 import 'package:integrated_vehicle_management_system/Repair%20Orders/repairOrderProfile.dart';
 
 class RepairOrders extends StatefulWidget {
@@ -28,6 +29,15 @@ class _RepairOrdersState extends State<RepairOrders> {
           },
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.lightBlue,
+        child: Icon(
+          Icons.add,
+          color: Colors.white,
+        ),
+        onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (context) => NewRepairOorder())),
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('repairOrders')
@@ -38,32 +48,32 @@ class _RepairOrdersState extends State<RepairOrders> {
             List<Widget> repairWidgets = [];
             for (var value in snapshot.data!.docs) {
               var order = value.data() as Map<String, dynamic>;
-              String repairId = value.id;
-              String vehiclePlate = order['licensePlateNumber'];
-              String vehicleInfo = order['makeAndModel'];
-              String driver = order['driver'];
-              String description = order['description'];
-              String spareParts = order['spareparts'];
-              String status = order['status'];
+              String repairId = value.id ?? '';
+              String orderType = order['order Type'];
+              String vehiclePlate = order['vehicle'] ?? '';
+              String vehicleId = order['vehicleId'] ?? '';
+              String driver = order['driver'] ?? '';
+              String description = order['description'] ?? '';
+              String status = order['Status'] ?? '';
 
-              repairWidgets.add(ListTile(
-                title: Text(
-                  repairId,
-                  style: GoogleFonts.lato(),
-                ),
-                trailing: IconButton(
-                  icon: Icon(Icons.delete),
-                  onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => RepairOrderProfile(
+              repairWidgets.add(GestureDetector(
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => RepairOrderProfile(
                               orderId: repairId,
                               vehiclePlate: vehiclePlate,
-                              vehicleInfo: vehicleInfo,
+                              vehicleId: vehicleId,
                               driver: driver,
                               description: description,
-                              spareParts: spareParts,
-                              status: status))),
+                              status: status,
+                              orderType: orderType,
+                            ))),
+                child: ListTile(
+                  title: Text(
+                    repairId,
+                    style: GoogleFonts.lato(fontSize: 20),
+                  ),
                 ),
               ));
             }

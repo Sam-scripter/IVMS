@@ -1,20 +1,21 @@
 import 'dart:async';
+import 'dart:ffi';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:integrated_vehicle_management_system/Components/functions.dart';
 import 'package:integrated_vehicle_management_system/Notifications/conversation_Screen.dart';
+import 'package:integrated_vehicle_management_system/Notifications/fuelAllocationNotification.dart';
 import 'package:integrated_vehicle_management_system/Notifications/fuelOrderNotification.dart';
-import 'package:integrated_vehicle_management_system/providers/driverNameProvider.dart';
-import 'package:integrated_vehicle_management_system/providers/orderTypeProvider.dart';
-import 'package:provider/provider.dart';
+import 'package:integrated_vehicle_management_system/Notifications/fuelShipmentNotification.dart';
+import 'package:integrated_vehicle_management_system/Notifications/repairOrderNotification.dart';
 
 class NotificationsPage extends StatefulWidget {
-  final String? orderId;
-  final String? senderId;
-
-  const NotificationsPage({super.key, this.orderId, this.senderId});
+  const NotificationsPage({
+    super.key,
+  });
 
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
@@ -22,31 +23,74 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<NotificationsPage> {
   late List<Map<String, dynamic>> _employees = [];
-  late List<Map<String, dynamic>> _notifications = [];
-  Map<String, int> unreadMessageCounts = {};
   String userRole = '';
   String userPosition = '';
-  String collection = '';
-  Color unreadNotificationColor = Colors.white;
+  String collectionName = '';
+  bool read = false;
+  String userId = '';
+  Color unreadNotificationColor = Colors.lightGreenAccent;
   late List<Widget> superUserWidgets = [];
   late List<Widget> transportWidgets = [];
   late List<Widget> repairWidgets = [];
   late List<Widget> driverWidgets = [];
   late List<Widget> fuelAttendant = [];
   late List<Widget> notificationsToDisplay = [];
+  final user = FirebaseAuth.instance.currentUser?.email;
+  int currentUnreadCount = 0;
+  // Define a set to store tapped notifications
+  Set<String> tappedNotifications = {};
 
   @override
   void initState() {
     super.initState();
     _fetchEmployees();
-    _fetchNotifications();
     getUserRole();
+    getUnreadCount();
   }
 
+  Future<void> getUnreadCount() async {
+    final currentUserEmail = FirebaseAuth.instance.currentUser?.email;
+
+    if (currentUserEmail != null) {
+      DocumentReference documentReference = FirebaseFirestore.instance
+          .collection('employees')
+          .doc(currentUserEmail);
+      DocumentSnapshot documentSnapshot = await documentReference.get();
+
+      if (documentSnapshot.exists) {
+        Map<String, dynamic>? data =
+            documentSnapshot.data() as Map<String, dynamic>?;
+        if (data != null && data.containsKey('unreadCount')) {
+          setState(() {
+            currentUnreadCount = data['unreadCount'];
+          });
+        } else {
+          setState(() {
+            currentUnreadCount = 0;
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> markNotificationRead(
+      String notificationId, String userId) async {
+    DocumentReference userDoc = FirebaseFirestore.instance
+        .collection('notifications')
+        .doc(notificationId)
+        .collection('users')
+        .doc(userId);
+
+    await userDoc.update({'read': true});
+  }
+
+  //Get the role and position of the currently logged in user
   Future<void> getUserRole() async {
+    //get current user
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
+      //if the user is available, fetch the position and role of the currently logged in user
       DocumentSnapshot snapshot = await FirebaseFirestore.instance
           .collection('employees')
           .doc(user.email)
@@ -65,20 +109,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
-  void updateUnreadCount(String userEmail) {
-    // Increment unread count for the user
-    setState(() {
-      unreadMessageCounts.update(userEmail, (count) => count + 1,
-          ifAbsent: () => 1);
-    });
-  }
-
   Future<void> _fetchEmployees() async {
     try {
-      // Get the current user
       final currentUser = FirebaseAuth.instance.currentUser;
 
-      //get all the users apart from the currently logged in user
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('employees')
           .where('emailAddress', isNotEqualTo: currentUser?.email)
@@ -95,29 +129,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
     } catch (e) {
       print(e);
       print('Did not fetch Employees');
-    }
-  }
-
-  Future<void> _fetchNotifications() async {
-    try {
-      // Get the current user
-      final currentUser = FirebaseAuth.instance.currentUser;
-
-      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection('notifications')
-          .orderBy('timestamp', descending: true)
-          .get();
-
-      _notifications = querySnapshot.docs.map((DocumentSnapshot document) {
-        return document.data() as Map<String, dynamic>;
-      }).toList();
-
-      setState(() {});
-
-      print('notifications are fetched');
-    } catch (e) {
-      print(e);
-      print('Did not fetch notifications');
     }
   }
 
@@ -141,7 +152,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
     if (querySnapshot.docs.isNotEmpty) {
       var doc = querySnapshot.docs.first;
-      return doc.data() as Map<String, dynamic>;
+      var data = doc.data() as Map<String, dynamic>;
+      data['messageId'] = doc.id;
+      return data;
     }
 
     return {}; // Return an empty map if no messages are found
@@ -163,60 +176,22 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return '$hour:$minute';
   }
 
+  Future<String?> determineNotification(String documentId) async {
+    if (documentId.startsWith('fuelOrder_')) {
+      collectionName = 'Fuel Orders';
+    } else if (documentId.startsWith('repairOrder_')) {
+      collectionName = 'Repair Orders';
+    } else if (documentId.startsWith('fuelShipment_')) {
+      collectionName = 'Fuel Shipments';
+    } else if (documentId.startsWith('fuelAllocation_')) {
+      collectionName = 'Fuel Allocations';
+    }
+
+    return collectionName;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Filter notifications based on type and user role
-    List<Map<String, dynamic>> filteredNotifications =
-        _notifications.where((notification) {
-      if (userRole == 'SuperUser') {
-        return true;
-      } else if (notification['notificationType'] ==
-              'Fuel Order Notification' &&
-          userRole == 'Admin' &&
-          userPosition == 'Transport Manager') {
-        return true;
-      } else if (notification['notificationType'] ==
-              'Repair Order Notification' &&
-          userRole == 'Admin' &&
-          userPosition == 'Repair Manager') {
-        return true;
-      }
-      return false;
-    }).toList();
-
-    // Display notifications based on type and user role
-    notificationsToDisplay = filteredNotifications.map((notification) {
-      String receivedNotificationId = notification['receivedNotificationId'];
-      String driverName = notification['driverName'];
-      String driverEmail = notification['userEmail'] ?? 'no driverEmail';
-      String notificationType = notification['notificationType'];
-      String vehicleId = notification['vehicleId'] ?? 'No vehicle Id';
-      return GestureDetector(
-        onTap: () {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => FuelOrderNotification(
-                        orderId: receivedNotificationId,
-                        driver: driverName,
-                        driverEmail: driverEmail,
-                        notificationType: notificationType,
-                        vehicleID: vehicleId,
-                      )));
-        },
-        child: ListTile(
-          title: Text(
-            notification['notificationType'],
-            style: GoogleFonts.lato(color: unreadNotificationColor),
-          ),
-          subtitle: Text(
-            'Driver: ${notification['driverName']}',
-            style: GoogleFonts.lato(color: Colors.grey),
-          ),
-        ),
-      );
-    }).toList();
-
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -231,9 +206,58 @@ class _NotificationsPageState extends State<NotificationsPage> {
             indicatorPadding: const EdgeInsets.symmetric(horizontal: 15),
             tabs: [
               Tab(
-                child: Text(
-                  'Notifications',
-                  style: GoogleFonts.lato(fontSize: 17.0),
+                child: Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 24),
+                      child: Text(
+                        'Notifications',
+                        style: GoogleFonts.lato(fontSize: 17.0),
+                      ),
+                    ),
+                    currentUnreadCount > 0
+                        ? // Display badge if unread count is greater than 0
+                        Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '$currentUnreadCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          )
+                        : (currentUnreadCount > 9)
+                            ? Positioned(
+                                right: 0,
+                                top: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '$currentUnreadCount+',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Container(),
+                  ],
                 ),
               ),
               Tab(
@@ -247,15 +271,561 @@ class _NotificationsPageState extends State<NotificationsPage> {
         ),
         body: TabBarView(
           children: [
-            notificationsToDisplay.isNotEmpty
-                ? SingleChildScrollView(
-                    child: Column(
-                      children: notificationsToDisplay,
-                    ),
-                  )
-                : const Center(
-                    child: Text('No notifications to display'),
-                  ),
+            SingleChildScrollView(
+              child: StreamBuilder(
+                  stream: FirebaseFirestore.instance
+                      .collection('notifications')
+                      .orderBy('timestamp', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      List<Widget> notificationWidgets = [];
+                      for (var notification in snapshot.data!.docs) {
+                        var value = notification.data() as Map<String, dynamic>;
+                        String notificationId = notification.id;
+                        String orderId = value['orderId'];
+                        String employeeName = value['employeeName'];
+                        String notificationType = value['notificationType'];
+                        String userEmail = value['userEmail'];
+                        String vehicleId = value['vehicleId'] ?? '';
+                        String approvedBy = value['approvedBy'] ?? '';
+                        String declinedBy = value['declinedBy'] ?? '';
+                        String completedBy = value['completedBy'] ?? '';
+
+                        CollectionReference usersCollection =
+                            notification.reference.collection('users');
+
+                        usersCollection.get().then((usersSnapshot) {
+                          for (var userDoc in usersSnapshot.docs) {
+                            var userDocValue =
+                                userDoc.data() as Map<String, dynamic>;
+                            userId = userDoc.id;
+                            read = userDocValue['read'] ?? false;
+                          }
+                        });
+
+                        if (userRole == 'SuperUser') {
+                          notificationWidgets.add(GestureDetector(
+                              child: Container(
+                            decoration: BoxDecoration(
+                              color: read ? Colors.white : Colors.blue.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: read
+                                      ? Colors.grey.withOpacity(0.5)
+                                      : Colors.blue.withOpacity(0.5),
+                                  spreadRadius: 2,
+                                  blurRadius: 5,
+                                  offset: Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 5, horizontal: 10),
+                            padding: const EdgeInsets.all(10),
+                            child: ListTile(
+                                title: Text(
+                                  notificationType,
+                                  style: GoogleFonts.lato(
+                                    fontSize: 20,
+                                    color: read
+                                        ? Colors.white
+                                        : Colors.blue.shade100,
+                                    fontWeight: read
+                                        ? FontWeight.normal
+                                        : FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: notificationType == 'Fuel Order' ||
+                                        notificationType == 'Repair Order' ||
+                                        notificationType == 'Fuel Shipment' ||
+                                        notificationType == 'Fuel Allocation'
+                                    ? Text(
+                                        'made by: $employeeName',
+                                        style: GoogleFonts.lato(fontSize: 15),
+                                      )
+                                    : (notificationType ==
+                                                'Approved Fuel Order' ||
+                                            notificationType ==
+                                                'Approved Repair Order')
+                                        ? Text(
+                                            'approved by: $approvedBy',
+                                            style:
+                                                GoogleFonts.lato(fontSize: 15),
+                                          )
+                                        : (notificationType ==
+                                                    'Completed Fuel Order' ||
+                                                notificationType ==
+                                                    'Completed Repair Order')
+                                            ? Text(
+                                                'completed by: $completedBy',
+                                                style: GoogleFonts.lato(
+                                                    fontSize: 15),
+                                              )
+                                            : Text(
+                                                'declined by: $declinedBy',
+                                                style: GoogleFonts.lato(
+                                                    fontSize: 15),
+                                              ),
+                                onTap: () async {
+                                  await markNotificationRead(
+                                      notificationId, userId);
+                                  setState(() {});
+
+                                  await getUnreadCount();
+                                  // Check if the order ID has been tapped before
+                                  if (!tappedNotifications
+                                      .contains(notificationId)) {
+                                    // Add the order ID to the set
+                                    tappedNotifications.add(orderId);
+
+                                    // Reset unread count if it's not already 0
+                                    if (currentUnreadCount != 0) {
+                                      await resetUnreadCount();
+                                      setState(() {});
+                                    }
+                                  }
+
+                                  if (orderId.startsWith('fuelOrder_')) {
+                                    Navigator.push(context,
+                                        MaterialPageRoute(builder: (context) {
+                                      return FuelOrderNotification(
+                                        orderId: orderId,
+                                        vehicleId: vehicleId,
+                                      );
+                                    }));
+                                  } else if (orderId
+                                      .startsWith('repairOrder_')) {
+                                    Navigator.push(context,
+                                        MaterialPageRoute(builder: (context) {
+                                      return RepairOrderNotification(
+                                        orderId: orderId,
+                                        vehicleId: vehicleId,
+                                      );
+                                    }));
+                                  } else if (orderId
+                                      .startsWith('fuelShipment_')) {
+                                    Navigator.push(context,
+                                        MaterialPageRoute(builder: (context) {
+                                      return FuelShipmentNotification(
+                                        orderId: orderId,
+                                      );
+                                    }));
+                                  } else if (orderId
+                                      .startsWith('fuelAllocation_')) {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) =>
+                                                FuelAllocationNotification(
+                                                    notificationId:
+                                                        notificationId)));
+                                  }
+                                }),
+                          )));
+                        } else if (userRole == 'Admin' &&
+                            userPosition == 'TransportManager') {
+                          if (orderId.startsWith('fuelOrder_') ||
+                              orderId.startsWith('fuelAllocation_') ||
+                              orderId.startsWith('fuel_shipment')) {
+                            notificationWidgets.add(GestureDetector(
+                                child: Container(
+                              decoration: BoxDecoration(
+                                color:
+                                    read ? Colors.white : Colors.blue.shade100,
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: read
+                                        ? Colors.grey.withOpacity(0.5)
+                                        : Colors.blue.withOpacity(0.5),
+                                    spreadRadius: 2,
+                                    blurRadius: 5,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              margin: const EdgeInsets.symmetric(
+                                  vertical: 5, horizontal: 10),
+                              padding: const EdgeInsets.all(10),
+                              child: ListTile(
+                                title: Text(
+                                  notificationType,
+                                  style: GoogleFonts.lato(
+                                    fontSize: 20,
+                                    color: read
+                                        ? Colors.white
+                                        : Colors.blue.shade100,
+                                    fontWeight: read
+                                        ? FontWeight.normal
+                                        : FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: notificationType == 'Fuel Order' ||
+                                        notificationType == 'Fuel Shipment' ||
+                                        notificationType == 'Fuel Allocation'
+                                    ? Text(
+                                        'made by: $employeeName',
+                                        style: GoogleFonts.lato(fontSize: 15),
+                                      )
+                                    : (notificationType ==
+                                            'Approved Fuel Order')
+                                        ? Text(
+                                            'approved by: $approvedBy',
+                                            style:
+                                                GoogleFonts.lato(fontSize: 15),
+                                          )
+                                        : (notificationType ==
+                                                'Completed Fuel Order')
+                                            ? Text(
+                                                'completed by: $completedBy',
+                                                style: GoogleFonts.lato(
+                                                    fontSize: 15),
+                                              )
+                                            : Text(
+                                                'declined by: $declinedBy',
+                                                style: GoogleFonts.lato(
+                                                    fontSize: 15),
+                                              ),
+                                onTap: () async {
+                                  await markNotificationRead(
+                                      notificationId, userId);
+                                  setState(() {});
+
+                                  await getUnreadCount();
+                                  // Check if the order ID has been tapped before
+                                  if (!tappedNotifications
+                                      .contains(notificationId)) {
+                                    // Add the order ID to the set
+                                    tappedNotifications.add(orderId);
+
+                                    // Reset unread count if it's not already 0
+                                    if (currentUnreadCount != 0) {
+                                      await resetUnreadCount();
+                                    }
+                                  }
+
+                                  if (orderId.startsWith('fuelOrder_')) {
+                                    Navigator.push(context,
+                                        MaterialPageRoute(builder: (context) {
+                                      return FuelOrderNotification(
+                                          orderId: orderId,
+                                          vehicleId: vehicleId);
+                                    }));
+                                  } else if (orderId
+                                      .startsWith('fuelAllocation_')) {
+                                    Navigator.push(context,
+                                        MaterialPageRoute(builder: (context) {
+                                      return FuelAllocationNotification(
+                                          notificationId: notificationId);
+                                    }));
+                                  } else if (orderId
+                                      .startsWith('fuelShipment_')) {
+                                    return;
+                                  }
+                                },
+                              ),
+                            )));
+                          }
+                        } else if (userRole == 'Admin' &&
+                            userPosition == 'Repair Manager') {
+                          if (orderId.startsWith('repairOrder_')) {
+                            notificationWidgets.add(GestureDetector(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: read
+                                      ? Colors.white
+                                      : Colors.blue.shade100,
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: read
+                                          ? Colors.grey.withOpacity(0.5)
+                                          : Colors.blue.withOpacity(0.5),
+                                      spreadRadius: 2,
+                                      blurRadius: 5,
+                                      offset: Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 5, horizontal: 10),
+                                padding: const EdgeInsets.all(10),
+                                child: ListTile(
+                                  title: Text(
+                                    notificationType,
+                                    style: GoogleFonts.lato(
+                                      fontSize: 20,
+                                      color: read
+                                          ? Colors.white
+                                          : Colors.blue.shade100,
+                                      fontWeight: read
+                                          ? FontWeight.normal
+                                          : FontWeight.bold,
+                                    ),
+                                  ),
+                                  subtitle: notificationType == 'Repair Order'
+                                      ? Text(
+                                          'made by: $employeeName',
+                                          style: GoogleFonts.lato(fontSize: 15),
+                                        )
+                                      : (notificationType ==
+                                              'Approved Repair Order')
+                                          ? Text(
+                                              'approved by: $approvedBy',
+                                              style: GoogleFonts.lato(
+                                                  fontSize: 15),
+                                            )
+                                          : (notificationType ==
+                                                  'Completed Repair Order')
+                                              ? Text(
+                                                  'completed by: $completedBy',
+                                                  style: GoogleFonts.lato(
+                                                      fontSize: 15),
+                                                )
+                                              : Text(
+                                                  'declined by: $declinedBy',
+                                                  style: GoogleFonts.lato(
+                                                      fontSize: 15),
+                                                ),
+                                ),
+                              ),
+                              onTap: () async {
+                                await markNotificationRead(
+                                    notificationId, userId);
+                                setState(() {});
+
+                                await getUnreadCount();
+                                // Check if the order ID has been tapped before
+                                if (!tappedNotifications
+                                    .contains(notificationId)) {
+                                  // Add the order ID to the set
+                                  tappedNotifications.add(orderId);
+
+                                  // Reset unread count if it's not already 0
+                                  if (currentUnreadCount != 0) {
+                                    await resetUnreadCount();
+                                  }
+                                }
+
+                                if (orderId.startsWith('repairOrder_')) {
+                                  Navigator.push(context,
+                                      MaterialPageRoute(builder: (context) {
+                                    return RepairOrderNotification(
+                                        orderId: orderId, vehicleId: vehicleId);
+                                  }));
+                                }
+                              },
+                            ));
+                          }
+                        } else if (userRole == 'User' &&
+                            userPosition == 'Fuel Attendant') {
+                          if (orderId.startsWith('fuelOrder_') &&
+                                  notificationType == 'Approved Fuel Order' ||
+                              orderId.startsWith('fuelAllocation_')) {
+                            notificationWidgets.add(GestureDetector(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: read
+                                      ? Colors.white
+                                      : Colors.blue.shade100,
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: read
+                                          ? Colors.grey.withOpacity(0.5)
+                                          : Colors.blue.withOpacity(0.5),
+                                      spreadRadius: 2,
+                                      blurRadius: 5,
+                                      offset: Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 5, horizontal: 10),
+                                padding: const EdgeInsets.all(10),
+                                child: ListTile(
+                                  title: Text(
+                                    notificationType,
+                                    style: GoogleFonts.lato(
+                                      fontSize: 20,
+                                      color: read
+                                          ? Colors.white
+                                          : Colors.blue.shade100,
+                                      fontWeight: read
+                                          ? FontWeight.normal
+                                          : FontWeight.bold,
+                                    ),
+                                  ),
+                                  subtitle: notificationType ==
+                                          'Approved Fuel Order'
+                                      ? Text(
+                                          'made by: $employeeName',
+                                          style: GoogleFonts.lato(fontSize: 15),
+                                        )
+                                      : (notificationType == 'Fuel allocation')
+                                          ? Text(
+                                              'new Fuel Allocation',
+                                              style: GoogleFonts.lato(
+                                                  fontSize: 15),
+                                            )
+                                          : null,
+                                ),
+                              ),
+                              onTap: () async {
+                                await markNotificationRead(
+                                    notificationId, userId);
+                                setState(() {});
+
+                                await getUnreadCount();
+                                // Check if the order ID has been tapped before
+                                if (!tappedNotifications
+                                    .contains(notificationId)) {
+                                  // Add the order ID to the set
+                                  tappedNotifications.add(orderId);
+
+                                  // Reset unread count if it's not already 0
+                                  if (currentUnreadCount != 0) {
+                                    await resetUnreadCount();
+                                  }
+                                }
+
+                                if (orderId.startsWith('fuelOrder_')) {
+                                  Navigator.push(context,
+                                      MaterialPageRoute(builder: (context) {
+                                    return FuelOrderNotification(
+                                        orderId: orderId, vehicleId: vehicleId);
+                                  }));
+                                } else if (orderId
+                                    .startsWith('fuelAllocation_')) {
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              FuelAllocationNotification(
+                                                  notificationId:
+                                                      notificationId)));
+                                }
+                              },
+                            ));
+                          }
+                        } else if (userRole == 'User' &&
+                            userPosition == 'Driver') {
+                          if (orderId.startsWith('fuelOrder_') &&
+                                  notificationType != 'Fuel Order' &&
+                                  userEmail == user ||
+                              orderId.startsWith('repairOrder_') &&
+                                  notificationType != 'Repair Order' &&
+                                  userEmail == user) {
+                            notificationWidgets.add(GestureDetector(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: read
+                                      ? Colors.white
+                                      : Colors.blue.shade100,
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: read
+                                          ? Colors.grey.withOpacity(0.5)
+                                          : Colors.blue.withOpacity(0.5),
+                                      spreadRadius: 2,
+                                      blurRadius: 5,
+                                      offset: Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 5, horizontal: 10),
+                                padding: const EdgeInsets.all(10),
+                                child: ListTile(
+                                  title: Text(
+                                    notificationType,
+                                    style: GoogleFonts.lato(
+                                      fontSize: 20,
+                                      color: read
+                                          ? Colors.white
+                                          : Colors.blue.shade100,
+                                      fontWeight: read
+                                          ? FontWeight.normal
+                                          : FontWeight.bold,
+                                    ),
+                                  ),
+                                  subtitle: notificationType ==
+                                              'Approved Fuel Order' ||
+                                          notificationType ==
+                                              'Approved Repair Order'
+                                      ? Text(
+                                          'approved by: $approvedBy',
+                                          style: GoogleFonts.lato(fontSize: 15),
+                                        )
+                                      : (notificationType ==
+                                                  'Completed Fuel Order' ||
+                                              notificationType ==
+                                                  'Completed Repair Order')
+                                          ? Text(
+                                              'completed by: $completedBy',
+                                              style: GoogleFonts.lato(
+                                                  fontSize: 15),
+                                            )
+                                          : (notificationType ==
+                                                      'Declined Fuel Order') ||
+                                                  notificationType ==
+                                                      'Declined Repair Order'
+                                              ? Text(
+                                                  'declined by: $declinedBy',
+                                                  style: GoogleFonts.lato(
+                                                      fontSize: 15),
+                                                )
+                                              : null,
+                                ),
+                              ),
+                              onTap: () async {
+                                await markNotificationRead(
+                                    notificationId, userId);
+                                setState(() {});
+
+                                await getUnreadCount();
+                                // Check if the order ID has been tapped before
+                                if (!tappedNotifications
+                                    .contains(notificationId)) {
+                                  // Add the order ID to the set
+                                  tappedNotifications.add(orderId);
+
+                                  // Reset unread count if it's not already 0
+                                  if (currentUnreadCount != 0) {
+                                    await resetUnreadCount();
+                                  }
+                                }
+
+                                if (orderId.startsWith('fuelOrder_')) {
+                                  Navigator.push(context,
+                                      MaterialPageRoute(builder: (context) {
+                                    return FuelOrderNotification(
+                                        orderId: orderId, vehicleId: vehicleId);
+                                  }));
+                                } else if (orderId.startsWith('repairOrder_')) {
+                                  Navigator.push(context,
+                                      MaterialPageRoute(builder: (context) {
+                                    return RepairOrderNotification(
+                                        orderId: orderId, vehicleId: vehicleId);
+                                  }));
+                                }
+                              },
+                            ));
+                          }
+                        }
+                      }
+                      return Column(
+                        children: notificationWidgets,
+                      );
+                    }
+                    return const Center(
+                      child: Text('No notifications Found'),
+                    );
+                  }),
+            ),
             _employees.isNotEmpty
                 ? ListView.builder(
                     itemCount: _employees.length,
@@ -276,9 +846,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 'Start a conversation!';
                             final time =
                                 _formatTimestamp(snapshot.data?['timestamp']);
-                            final unreadCount = unreadMessageCounts[
-                                    _employees[index]['emailAddress']] ??
-                                0;
+                            final isRead = snapshot.data?['read'] ?? true;
 
                             return ConversationTile(
                               name:
@@ -287,10 +855,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               time: time,
                               userId: _employees[index]['emailAddress'],
                               userEmail: _employees[index]['emailAddress'],
-                              unreadCount: unreadCount,
-                              unreadMessageCounts:
-                                  unreadMessageCounts, // Pass the unread count
-                              updateUnreadCount: updateUnreadCount,
+                              isRead: isRead,
                             );
                           }
                         },
@@ -312,9 +877,7 @@ class ConversationTile extends StatefulWidget {
   final String time;
   final String userId;
   final String userEmail;
-  final int unreadCount;
-  final Map<String, int> unreadMessageCounts;
-  final Function(String) updateUnreadCount;
+  final bool isRead;
 
   const ConversationTile({
     super.key,
@@ -323,9 +886,7 @@ class ConversationTile extends StatefulWidget {
     required this.time,
     required this.userId,
     required this.userEmail,
-    this.unreadCount = 0,
-    required this.unreadMessageCounts,
-    required this.updateUnreadCount,
+    required this.isRead,
   });
 
   Future<void> updateOnlineStatus(String userId, bool isOnline) async {
@@ -362,34 +923,18 @@ class _ConversationTileState extends State<ConversationTile> {
     super.initState();
     onlineStatusSubscription =
         widget.listenForOnlineStatus(widget.userId, (bool online) {
-      setState(() {
-        isOnline = online;
-      });
+      if (mounted) {
+        setState(() {
+          isOnline = online;
+        });
+      }
     });
   }
 
   @override
   void dispose() {
     onlineStatusSubscription.cancel();
-
-    // Reset unread count when the conversation is viewed
-    widget.unreadCount > 0
-        ? handleViewConversation(widget.userId, widget.unreadMessageCounts)
-        : null;
-
     super.dispose();
-  }
-
-  void handleViewConversation(
-      String userId, Map<String, int> unreadMessageCounts) {
-    // Reset unread count for the user
-    if (widget.unreadCount > 0) {
-      setState(() {
-        unreadMessageCounts.update(userId, (count) => 0);
-      });
-
-      widget.updateUnreadCount(userId);
-    }
   }
 
   @override
@@ -405,23 +950,6 @@ class _ConversationTileState extends State<ConversationTile> {
                   child: Text(widget.name[0].toUpperCase(),
                       style: TextStyle(color: Colors.white)),
                 ),
-                if (widget.unreadCount > 0)
-                  Positioned(
-                    top: -3,
-                    left: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.green,
-                      ),
-                      child: Text(
-                        widget.unreadCount.toString(),
-                        style:
-                            GoogleFonts.lato(color: Colors.white, fontSize: 13),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -442,12 +970,16 @@ class _ConversationTileState extends State<ConversationTile> {
       ),
       title: Text(
         widget.name,
-        style: GoogleFonts.lato(fontWeight: FontWeight.bold),
+        style: GoogleFonts.lato(
+            fontWeight: widget.isRead ? FontWeight.normal : FontWeight.bold),
       ),
       subtitle: Text(
         widget.lastMessage,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: widget.isRead ? Colors.grey : Colors.black,
+        ),
       ),
       trailing: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -481,7 +1013,6 @@ class _ConversationTileState extends State<ConversationTile> {
                 builder: (context) => ConversationScreen(
                       username: widget.name,
                       email: widget.userEmail,
-                      updateUnreadCount: widget.updateUnreadCount,
                     )));
       },
     );

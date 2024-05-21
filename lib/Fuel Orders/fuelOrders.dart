@@ -12,12 +12,7 @@ class FuelOrders extends StatefulWidget {
 }
 
 class _FuelOrdersState extends State<FuelOrders> {
-  Future<void> deleteOrder(String orderId) async {
-    await FirebaseFirestore.instance
-        .collection('Fuel Orders')
-        .doc(orderId)
-        .delete();
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -59,13 +54,15 @@ class _FuelOrdersState extends State<FuelOrders> {
             for (var order in snapshot.data!.docs) {
               var value = order.data() as Map<String, dynamic>;
               String orderId = order.id;
+              String driver = value['Driver'];
+              String vehicleInfo = value['Vehicle'];
               String fuelType = value['Fuel Type'];
               String origin = value['Origin'];
               String destination = value['Destination'];
               String purpose = value['Purpose'];
-              String driver = value['Driver'];
-              String vehicleInfo = value['Vehicle'];
+              double litresRequired = value['Litres Required'] ?? 0;
               String orderStatus = value['Status'];
+              String litresAllocated = litresRequired.toString();
 
               fuelOrderWidgets.add(GestureDetector(
                 onTap: () => Navigator.push(
@@ -79,6 +76,7 @@ class _FuelOrdersState extends State<FuelOrders> {
                         driver: driver,
                         vehicleInfo: vehicleInfo,
                         purpose: purpose,
+                        litresRequired: litresAllocated,
                         orderStatus: orderStatus),
                   ),
                 ),
@@ -87,10 +85,7 @@ class _FuelOrdersState extends State<FuelOrders> {
                     orderId,
                     style: GoogleFonts.lato(fontSize: 20),
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () => deleteOrder(orderId),
-                  ),
+
                 ),
               ));
             }

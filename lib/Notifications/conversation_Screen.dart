@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 class ConversationScreen extends StatefulWidget {
   final String username;
   final String email;
-  final Function(String) updateUnreadCount;
-  const ConversationScreen(
-      {super.key,
-      required this.username,
-      required this.email,
-      required this.updateUnreadCount});
+
+  const ConversationScreen({
+    super.key,
+    required this.username,
+    required this.email,
+  });
 
   @override
   State<ConversationScreen> createState() => _ConversationScreenState();
@@ -104,8 +104,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
       duration: Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
-
-    widget.updateUnreadCount(receiverId);
   }
 
   String _formatTimestamp(DateTime timestamp) {

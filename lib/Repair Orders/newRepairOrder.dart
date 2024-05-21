@@ -1,8 +1,13 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:integrated_vehicle_management_system/Components/functions.dart';
 import 'package:integrated_vehicle_management_system/Components/inputRegister.dart';
+import 'package:integrated_vehicle_management_system/Repair%20Orders/repairOrders.dart';
 
 class NewRepairOorder extends StatefulWidget {
   const NewRepairOorder({super.key});
@@ -12,11 +17,6 @@ class NewRepairOorder extends StatefulWidget {
 }
 
 class _NewRepairOorderState extends State<NewRepairOorder> {
-  String plateDropdownValue = '';
-  String makeAndModelValue = '';
-  String driverDropDownValue = '';
-  String sparepartsDropdownValue = '';
-  TextEditingController descriptionController = TextEditingController();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,143 +26,223 @@ class _NewRepairOorderState extends State<NewRepairOorder> {
           style: GoogleFonts.lato(),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            StreamBuilder(
-                stream: FirebaseFirestore.instance
-                    .collection('vehicles')
-                    .orderBy('timestamp', descending: false)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  List<DropdownMenuItem<String>> plates = [];
-                  if (snapshot.hasData) {
-                    for (var value in snapshot.data!.docs) {
-                      var vehicle = value.data() as Map<String, dynamic>;
-                      String vehiclePlate = vehicle['licensePLateNumber'];
+      body: NewRepairOrderForm(),
+    );
+  }
+}
 
-                      plates.add(DropdownMenuItem(
-                        child: Text(vehiclePlate),
-                        value: vehiclePlate,
-                      ));
-                    }
-                  }
-                  return DropdownButton(
-                    focusColor: Colors.lightBlueAccent,
-                    dropdownColor: Colors.black87,
-                    hint: const Text('vehicle plate'),
-                    isExpanded: true,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 9, horizontal: 23),
-                    items: plates,
-                    value: plateDropdownValue,
-                    onChanged: (value) {
-                      setState(() {
-                        plateDropdownValue = value!;
-                      });
-                    },
-                  );
-                }),
-            StreamBuilder(
-                stream: FirebaseFirestore.instance
-                    .collection('vehicles')
-                    .orderBy('timestamp', descending: false)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  List<DropdownMenuItem<String>> plates = [];
-                  if (snapshot.hasData) {
-                    for (var value in snapshot.data!.docs) {
-                      var vehicle = value.data() as Map<String, dynamic>;
-                      String vehicleModel = vehicle['makeAndModel'];
+class NewRepairOrderForm extends StatefulWidget {
+  const NewRepairOrderForm({super.key});
 
-                      plates.add(DropdownMenuItem(
-                        child: Text(vehicleModel),
-                        value: vehicleModel,
-                      ));
-                    }
-                  }
-                  return DropdownButton(
-                    focusColor: Colors.lightBlueAccent,
-                    dropdownColor: Colors.black87,
-                    hint: const Text('Make and Model'),
-                    isExpanded: true,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 9, horizontal: 23),
-                    items: plates,
-                    value: makeAndModelValue,
-                    onChanged: (value) {
-                      setState(() {
-                        makeAndModelValue = value!;
-                      });
-                    },
-                  );
-                }),
-            StreamBuilder(
-                stream: FirebaseFirestore.instance
-                    .collection('vehicles')
-                    .orderBy('timestamp', descending: false)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  List<DropdownMenuItem<String>> plates = [];
-                  if (snapshot.hasData) {
-                    for (var value in snapshot.data!.docs) {
-                      var vehicle = value.data() as Map<String, dynamic>;
-                      String vehicleDriver = vehicle['driver'];
+  @override
+  State<NewRepairOrderForm> createState() => _NewRepairOrderFormState();
+}
 
-                      plates.add(DropdownMenuItem(
-                        child: Text(vehicleDriver),
-                        value: vehicleDriver,
-                      ));
-                    }
-                  }
-                  return DropdownButton(
-                    focusColor: Colors.lightBlueAccent,
-                    dropdownColor: Colors.black87,
-                    hint: const Text('Driver'),
-                    isExpanded: true,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 9, horizontal: 23),
-                    items: plates,
-                    value: driverDropDownValue,
-                    onChanged: (value) {
-                      setState(() {
-                        driverDropDownValue = value!;
-                      });
+class _NewRepairOrderFormState extends State<NewRepairOrderForm> {
+  final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+  String driver = '';
+  String vehicleId = '';
+  String vehicle = '';
+
+  TextEditingController descriptionController = TextEditingController();
+
+  String _generateRandomString(int length) {
+    const characters =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    Random random = Random();
+    return String.fromCharCodes(
+      List.generate(length,
+          (index) => characters.codeUnitAt(random.nextInt(characters.length))),
+    );
+  }
+
+  Future<void> _storeNotification(
+      String notificationType, String driverName, String orderId) async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      DocumentReference notificationRef =
+          await FirebaseFirestore.instance.collection('notifications').add({
+        'userEmail': user.email,
+        'notificationType': notificationType,
+        'employeeName': driverName,
+        'orderId': orderId,
+        'vehicleId': vehicleId,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      // Query employees with the specified roles and positions
+      QuerySnapshot employeesSnapshot = await FirebaseFirestore.instance
+          .collection('employees')
+          .where('role', whereIn: ['SuperUser', 'Admin']).get();
+
+      // Create a list of Map objects representing the initial read status for selected employees
+      List<Map<String, dynamic>> initialReadStatus =
+          employeesSnapshot.docs.where((employeeDoc) {
+        // For SuperUsers, add all employees to the subcollection
+        if (employeeDoc['role'] == 'SuperUser') {
+          return true;
+        }
+        // For Admins, only add Transport Managers
+        else if (employeeDoc['position'] == 'Repair Manager') {
+          return true;
+        }
+        return false;
+      }).map((employeeDoc) {
+        return {
+          'userId': employeeDoc.id,
+          'read': false,
+        };
+      }).toList();
+
+      // Add the users subcollection to the notification document and initialize read status for selected employees
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+      initialReadStatus.forEach((readStatus) {
+        batch.set(
+          notificationRef.collection('users').doc(readStatus['userId']),
+          readStatus,
+        );
+      });
+
+      // Commit the batch write operation
+      await batch.commit();
+    }
+  }
+
+  Future<void> _getRequiredDetails() async {
+    final user = FirebaseAuth.instance.currentUser?.email;
+    if (user != null) {
+      DocumentReference documentReference =
+          FirebaseFirestore.instance.collection('employees').doc(user);
+      DocumentSnapshot snapshot = await documentReference.get();
+      if (snapshot.exists) {
+        var value = snapshot.data() as Map<String, dynamic>;
+        setState(() {
+          driver = '${value['firstName']} ${value['secondName']}';
+          vehicleId = value['vehicleId'] ?? '';
+          vehicle = value['vehicle'] ?? '';
+        });
+        if (vehicleId.isEmpty) {
+          return showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: Text('Error!'),
+                content: Text(
+                    'You do not have a vehicle, this may be due to the fact that you are not a driver!'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pop(context);
                     },
-                  );
-                }),
-            inputRegister(
-                text: const Text('Description'),
+                    child: Text('Ok'),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      } else {
+        print('User does not exist');
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _getRequiredDetails();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(children: [
+      Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              inputRegister(
+                text: const Text('Description of repair'),
                 textController: descriptionController,
                 inputType: TextInputType.text,
                 valueValidator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter the description';
+                    return 'Please enter description of the damage';
                   }
-                }),
-            //TODO: Handle Spare parts such that make and model goes with the spare part,
-            Material(
-              borderRadius: BorderRadius.all(Radius.circular(30)),
-              child: MaterialButton(
-                height: 42,
-                minWidth: 320,
-                elevation: 5.0,
-                onPressed: () async {
-                  await FirebaseFirestore.instance
-                      .collection('repairOrders')
-                      .add({
-                    'licensePlateNumber': plateDropdownValue,
-                    'makeAndModel': makeAndModelValue,
-                    'driver': driverDropDownValue,
-                    'description': descriptionController.text,
-                    'status': 'Submitted',
-                  });
                 },
               ),
-            )
-          ],
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 30.0),
+                child: Material(
+                  borderRadius: const BorderRadius.all(
+                    Radius.circular(30.0),
+                  ),
+                  elevation: 5.0,
+                  color: Colors.lightBlue,
+                  child: MaterialButton(
+                    minWidth: 320,
+                    height: 42,
+                    elevation: 5.0,
+                    onPressed: () async {
+                      if (_formKey.currentState!.validate()) {
+                        // Dismiss the keyboard
+                        FocusScope.of(context).unfocus();
+                        setState(() {
+                          _isLoading = true;
+                        });
+                        try {
+                          String customId =
+                              'repairOrder_${_generateRandomString(8)}';
+
+                          DocumentReference repairOrderRef = FirebaseFirestore
+                              .instance
+                              .collection('repairOrders')
+                              .doc(customId);
+
+                          await repairOrderRef.set({
+                            'order Type': 'Repair Order',
+                            'driver': driver,
+                            'vehicle': vehicle,
+                            'vehicleId': vehicleId,
+                            'description': descriptionController.text,
+                            'Status': 'submitted',
+                            'timestamp': FieldValue.serverTimestamp(),
+                          });
+
+                          await updateRepairUnreadCount();
+                          await updateSuperUserUnreadCount();
+                          await updateRepairUserUnreadCount();
+                          await _storeNotification(
+                              'Repair Order', driver, customId);
+
+                          Navigator.pop(context);
+                        } catch (e) {
+                          print(e);
+                        } finally {
+                          setState(() {
+                            _isLoading = false;
+                          });
+                        }
+                      }
+                    },
+                    child: const Text('Make Order'),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    );
+      if (_isLoading)
+        Container(
+          color: Colors.black.withOpacity(0.7),
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+    ]);
   }
 }

@@ -4,6 +4,7 @@ import 'package:integrated_vehicle_management_system/Fuel%20Orders/fuelOrders.da
 import 'package:integrated_vehicle_management_system/Fuel%20shipments/fuelShipments.dart';
 import 'package:integrated_vehicle_management_system/Notifications/notifications_page.dart';
 import 'package:integrated_vehicle_management_system/Repair%20Orders/repairOrders.dart';
+import 'package:integrated_vehicle_management_system/Store/storeHome.dart';
 import 'package:integrated_vehicle_management_system/api/firebase_api.dart';
 import 'package:integrated_vehicle_management_system/providers/driverNameProvider.dart';
 import 'package:integrated_vehicle_management_system/providers/orderTypeProvider.dart';
@@ -39,6 +40,10 @@ Future<void> main() async {
   ], child: const System()));
 }
 
+// void main() {
+//   runApp(const System());
+// }
+
 class System extends StatelessWidget {
   const System({super.key});
 
@@ -73,6 +78,23 @@ class System extends StatelessWidget {
         '/fuelOrders': (context) => const FuelOrders(),
         '/repairOrders': (context) => const RepairOrders(),
         '/fuelShipments': (context) => const FuelShipments(),
+        // '/store': (context) => const StoreHome(
+        //       categories: [
+        //         'Engine Parts',
+        //         'Brake System',
+        //         'Electrical',
+        //         'Tires and Wheels',
+        //         'Suspensions and Steering',
+        //         'Transmission and Drivetrain',
+        //         'Cooling System',
+        //         'Air Conditioning and Heating',
+        //         'Fluids and Chemicals',
+        //         'Tools and Equipment',
+        //         'Accessories and Upgrades',
+        //         'Service and Maintenance',
+        //       ],
+        //     ),
+        '/store': (context) => const StoreHome(),
       },
     );
   }

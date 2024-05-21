@@ -12,6 +12,7 @@ class FuelOrderProfile extends StatefulWidget {
   final String driver;
   final String vehicleInfo;
   final String purpose;
+  final String litresRequired;
   final String orderStatus;
 
   const FuelOrderProfile({
@@ -24,6 +25,7 @@ class FuelOrderProfile extends StatefulWidget {
     required this.vehicleInfo,
     required this.purpose,
     required this.orderStatus,
+    required this.litresRequired,
   });
 
   @override
@@ -94,33 +96,38 @@ class _FuelOrderProfileState extends State<FuelOrderProfile> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ProfileTextBox(title: 'Fuel Type', titleValue: widget.fuelType),
+              ProfileTextBox1(title: 'Driver', titleValue: widget.driver),
               const SizedBox(
                 height: 15.0,
               ),
-              ProfileTextBox(
+              ProfileTextBox1(title: 'Vehicle', titleValue: widget.vehicleInfo),
+              const SizedBox(
+                height: 15.0,
+              ),
+              ProfileTextBox1(title: 'Fuel Type', titleValue: widget.fuelType),
+              const SizedBox(
+                height: 15.0,
+              ),
+              ProfileTextBox1(
                   title: 'Starting Location', titleValue: widget.origin),
               const SizedBox(
                 height: 15.0,
               ),
-              ProfileTextBox(
+              ProfileTextBox1(
                   title: 'Destination', titleValue: widget.destination),
               const SizedBox(
                 height: 15.0,
               ),
-              ProfileTextBox(title: 'Driver', titleValue: widget.driver),
+              ProfileTextBox1(title: 'Purpose', titleValue: widget.purpose),
               const SizedBox(
                 height: 15.0,
               ),
-              ProfileTextBox(title: 'Vehicle', titleValue: widget.vehicleInfo),
+              ProfileTextBox1(
+                  title: 'Litres Required', titleValue: widget.litresRequired),
               const SizedBox(
                 height: 15.0,
               ),
-              ProfileTextBox(title: 'Purpose', titleValue: widget.purpose),
-              const SizedBox(
-                height: 15.0,
-              ),
-              ProfileTextBox(
+              ProfileTextBox1(
                   title: 'Order Status', titleValue: widget.orderStatus),
             ],
           ),

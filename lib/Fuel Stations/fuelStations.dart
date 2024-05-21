@@ -12,12 +12,7 @@ class FuelStations extends StatefulWidget {
 }
 
 class _FuelStationsState extends State<FuelStations> {
-  Future<void> deleteStation(String stationId) async {
-    await FirebaseFirestore.instance
-        .collection('fuelStations')
-        .doc(stationId)
-        .delete();
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -95,10 +90,6 @@ class _FuelStationsState extends State<FuelStations> {
                     title: Text(
                       stationName,
                       style: GoogleFonts.lato(fontSize: 20),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () => deleteStation(stationId),
                     ),
                   ),
                 ),

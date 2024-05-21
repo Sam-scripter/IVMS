@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'positionProfile.dart';
+import '../Departments/positionProfile.dart';
 
 class Positions extends StatefulWidget {
   const Positions({super.key});
@@ -14,10 +14,6 @@ class Positions extends StatefulWidget {
 class _PositionsState extends State<Positions> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
-
-  Future<void> deletePosition(String positionId) async {
-    await _firestore.collection('positions').doc(positionId).delete();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,19 +74,7 @@ class _PositionsState extends State<Positions> {
                           style: GoogleFonts.lato(
                               textStyle: const TextStyle(fontSize: 20.0)),
                         ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () {
-                            deletePosition(positionId);
-                          },
-                        ),
-                        onTap: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => PositionProfile(
-                                      positionName: positionName)));
-                        },
+                        onTap: () {},
                       ),
                     );
                   }

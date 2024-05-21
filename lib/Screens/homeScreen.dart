@@ -6,6 +6,14 @@ import 'package:integrated_vehicle_management_system/Components/reusableCard.dar
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:integrated_vehicle_management_system/Screens/EmployeeRegLogin/login.dart';
 import 'package:integrated_vehicle_management_system/main.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+Future<void> updateOnlineStatus(String userId, bool isOnline) async {
+  await FirebaseFirestore.instance
+      .collection('employees')
+      .doc(userId)
+      .update({'isOnline': isOnline});
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -30,6 +38,27 @@ class _HomeScreenState extends State<HomeScreen> {
   final _auth = FirebaseAuth.instance;
   String userRole = '';
   String userPosition = '';
+
+  Stream<int> _unreadCountStream() async* {
+    final currentUserEmail = FirebaseAuth.instance.currentUser?.email;
+
+    if (currentUserEmail != null) {
+      final documentReference = FirebaseFirestore.instance
+          .collection('employees')
+          .doc(currentUserEmail);
+
+      yield* documentReference.snapshots().map<int>((snapshot) {
+        if (snapshot.exists) {
+          final data = snapshot.data() as Map<String, dynamic>;
+          return data['unreadCount'] ?? 0;
+        } else {
+          return 0;
+        }
+      });
+    } else {
+      yield 0;
+    }
+  }
 
   @override
   void initState() {
@@ -99,30 +128,31 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.car_rental,
+            icon: FontAwesomeIcons.car,
             label: 'Vehicles',
+            colour: Colors.cyan,
           ),
         ),
       ),
-      GestureDetector(
-        onTap: () {
-          Navigator.pushNamed(context, '/positions');
-        },
-        child: ReusableCard(
-          colour: const Color(0xFF111328),
-          cardChild: CardContents(
-            icon: Icons.article_outlined,
-            colour: Colors.purpleAccent,
-            label: 'Positions',
-          ),
-        ),
-      ),
+      // GestureDetector(
+      //   onTap: () {
+      //     Navigator.pushNamed(context, '/positions');
+      //   },
+      //   child: ReusableCard(
+      //     colour: const Color(0xFF111328),
+      //     cardChild: CardContents(
+      //       icon: Icons.article_outlined,
+      //       colour: Colors.purpleAccent,
+      //       label: 'Positions',
+      //     ),
+      //   ),
+      // ),
       GestureDetector(
         onTap: () => Navigator.pushNamed(context, '/fuelStations'),
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.gas_meter,
+            icon: FontAwesomeIcons.gasPump,
             label: 'Fuel Stations',
             colour: Colors.yellow,
           ),
@@ -135,6 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
           cardChild: CardContents(
             icon: Icons.gas_meter,
             label: 'Fuel Orders',
+            colour: Colors.deepOrangeAccent,
           ),
         ),
       ),
@@ -143,8 +174,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.ac_unit,
+            icon: FontAwesomeIcons.toolbox,
             label: 'Repair Orders',
+            colour: Colors.indigo,
           ),
         ),
       ),
@@ -153,20 +185,22 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.ac_unit,
+            icon: Icons.gas_meter_sharp,
             label: 'Fuel Shipments',
+            colour: Colors.red,
           ),
         ),
       ),
       GestureDetector(
         onTap: () {
-          null;
+          Navigator.pushNamed(context, '/store');
         },
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.ac_unit,
+            icon: Icons.store,
             label: 'Store',
+            colour: Colors.brown,
           ),
         ),
       ),
@@ -177,8 +211,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.group_add,
+            icon: Icons.report,
             label: 'Fuel Reports',
+            colour: Colors.blueGrey,
           ),
         ),
       ),
@@ -189,8 +224,22 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.group_add,
+            icon: FontAwesomeIcons.bookBookmark,
             label: 'Repair Reports',
+            colour: Colors.deepPurple,
+          ),
+        ),
+      ),
+      GestureDetector(
+        onTap: () {
+          null;
+        },
+        child: ReusableCard(
+          colour: const Color(0xFF111328),
+          cardChild: CardContents(
+            icon: Icons.book,
+            label: 'General Reports',
+            colour: Colors.teal,
           ),
         ),
       ),
@@ -219,8 +268,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.car_rental,
+            icon: FontAwesomeIcons.car,
             label: 'Vehicles',
+            colour: Colors.cyan,
           ),
         ),
       ),
@@ -229,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.gas_meter,
+            icon: FontAwesomeIcons.gasPump,
             label: 'Fuel Stations',
             colour: Colors.yellow,
           ),
@@ -245,11 +295,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      ReusableCard(
-        colour: const Color(0xFF111328),
-        cardChild: CardContents(
-          icon: Icons.ac_unit,
-          label: 'Fuel Shipments',
+      GestureDetector(
+        onTap: () => Navigator.pushNamed(context, '/fuelShipments'),
+        child: ReusableCard(
+          colour: const Color(0xFF111328),
+          cardChild: CardContents(
+            icon: Icons.gas_meter_sharp,
+            label: 'Fuel Shipments',
+            colour: Colors.red,
+          ),
         ),
       ),
       GestureDetector(
@@ -259,8 +313,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.group_add,
+            icon: Icons.report,
             label: 'Fuel Reports',
+            colour: Colors.blueGrey,
           ),
         ),
       ),
@@ -289,8 +344,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.car_rental,
+            icon: FontAwesomeIcons.car,
             label: 'Vehicles',
+            colour: Colors.cyan,
           ),
         ),
       ),
@@ -299,20 +355,22 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.ac_unit,
+            icon: FontAwesomeIcons.toolbox,
             label: 'Repair Orders',
+            colour: Colors.indigo,
           ),
         ),
       ),
       GestureDetector(
         onTap: () {
-          null;
+          Navigator.pushNamed(context, '/store');
         },
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.ac_unit,
+            icon: Icons.store,
             label: 'Store',
+            colour: Colors.brown,
           ),
         ),
       ),
@@ -323,8 +381,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.group_add,
+            icon: FontAwesomeIcons.bookBookmark,
             label: 'Repair Reports',
+            colour: Colors.deepPurple,
           ),
         ),
       ),
@@ -353,8 +412,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.car_rental,
+            icon: FontAwesomeIcons.car,
             label: 'Vehicles',
+            colour: Colors.cyan,
           ),
         ),
       ),
@@ -365,6 +425,17 @@ class _HomeScreenState extends State<HomeScreen> {
           cardChild: CardContents(
             icon: Icons.gas_meter,
             label: 'Fuel Orders',
+          ),
+        ),
+      ),
+      GestureDetector(
+        onTap: () => Navigator.pushNamed(context, '/fuelStations'),
+        child: ReusableCard(
+          colour: const Color(0xFF111328),
+          cardChild: CardContents(
+            icon: FontAwesomeIcons.gasPump,
+            label: 'Fuel Stations',
+            colour: Colors.yellow,
           ),
         ),
       ),
@@ -385,8 +456,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.ac_unit,
+            icon: FontAwesomeIcons.toolbox,
             label: 'Repair Orders',
+            colour: Colors.indigo,
           ),
         ),
       ),
@@ -397,8 +469,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.group_add,
+            icon: Icons.report,
             label: 'Fuel Reports',
+            colour: Colors.blueGrey,
           ),
         ),
       ),
@@ -409,8 +482,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
-            icon: Icons.group_add,
+            icon: FontAwesomeIcons.bookBookmark,
             label: 'Repair Reports',
+            colour: Colors.deepPurple,
           ),
         ),
       ),
@@ -422,13 +496,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Widget> repairManagerCards = [];
   List<Widget> fuelAttendantCards = [];
   List<Widget> driverCards = [];
-
-  Future<void> updateOnlineStatus(String userId, bool isOnline) async {
-    await FirebaseFirestore.instance
-        .collection('employees')
-        .doc(userId)
-        .update({'isOnline': isOnline});
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -481,18 +548,28 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.white,
             ),
           ),
-          IconButton(
-            onPressed: () {
-              navigatorkey.currentState?.pushNamed('/notifications');
+          StreamBuilder<int>(
+            stream: _unreadCountStream(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return CircularProgressIndicator();
+              } else if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}');
+              } else {
+                return NotificationIconButton(
+                  unreadCount: snapshot.data ?? 0,
+                  onPressed: () {
+                    navigatorkey.currentState?.pushNamed('/notifications');
+                  },
+                );
+              }
             },
-            icon: const Icon(Icons.notifications),
           ),
           IconButton(
-            onPressed: () {
-              final userId = _auth.currentUser?.uid;
+            onPressed: () async {
+              final userId = FirebaseAuth.instance.currentUser?.email;
               if (userId != null) {
-                const bool isOnline = true;
-                updateOnlineStatus(userId, !isOnline);
+                updateOnlineStatus(userId, false);
                 _auth.signOut();
                 Navigator.pushReplacement(
                     context,
@@ -631,19 +708,64 @@ class NavigationDrawer extends StatelessWidget {
               thickness: 10.0,
             ),
             ListTile(
-              leading: Icon(Icons.logout_outlined),
-              title: Text('Log Out'),
-              onTap: () {
-                _auth.signOut();
-                Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const LoginScreen()));
-              },
-            )
+                leading: Icon(Icons.logout_outlined),
+                title: Text('Log Out'),
+                onTap: () async {
+                  final userId = FirebaseAuth.instance.currentUser?.email;
+                  if (userId != null) {
+                    updateOnlineStatus(userId, false);
+                    _auth.signOut();
+                    Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const LoginScreen()));
+                  }
+                })
           ],
         ),
       );
+}
+
+class NotificationIconButton extends StatelessWidget {
+  final int unreadCount;
+  final VoidCallback? onPressed;
+
+  const NotificationIconButton({
+    Key? key,
+    required this.unreadCount,
+    this.onPressed,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        IconButton(
+          onPressed: onPressed,
+          icon: const Icon(Icons.notifications),
+        ),
+        if (unreadCount > 0)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                '$unreadCount',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 // scaffoldcolor = 0xFF0A0D22

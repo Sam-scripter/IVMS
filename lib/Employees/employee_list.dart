@@ -75,8 +75,8 @@ class _EmployeesState extends State<Employees> {
                   List<Widget> employeeWidgets = [];
                   for (var employee in snapshot.data!.docs) {
                     var value = employee.data() as Map<String, dynamic>;
-                    String employeeFirstName = value['firstName'].toString();
-                    String employeeSecondName = value['secondName'].toString();
+                    String employeeFirstName = value['firstName'];
+                    String employeeSecondName = value['secondName'];
                     String employeeEmail = value['emailAddress'];
                     String employeeRole = value['role'];
                     String employeePosition = value['position'];
@@ -133,13 +133,6 @@ class _EmployeesState extends State<Employees> {
                               ),
                             ],
                           ),
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () {
-                            //TODO: Add an alert dialog to confirm deletion
-                            deleteEmployee(employeeId);
-                          },
                         ),
                       ),
                     );

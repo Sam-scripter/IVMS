@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:integrated_vehicle_management_system/Screens/EmployeeRegLogin/alterLogin.dart';
 import 'package:integrated_vehicle_management_system/Screens/EmployeeRegLogin/login.dart';
-import 'package:integrated_vehicle_management_system/Screens/EmployeeRegLogin/registration.dart';
-import 'package:integrated_vehicle_management_system/Screens/Profiles/userProfile.dart';
+import 'changePassword.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,7 +16,6 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     _nextPage();
   }
@@ -64,20 +65,13 @@ class _SplashScreenState extends State<SplashScreen> {
                       textStyle: colorizeTextStyle,
                       colors: colorizeColors,
                     ),
-                    // WavyAnimatedText(
-                    //   'IVMS',
-                    //   textStyle: const TextStyle(
-                    //       fontWeight: FontWeight.bold, fontSize: 40.0),
-                    //   speed: const Duration(milliseconds: 200),
-                    // ),
-                    // TypewriterAnimatedText(
-                    //   'easy operations',
-                    //   textStyle: const TextStyle(fontSize: 20.0),
-                    //   speed: const Duration(milliseconds: 120),
-                    // ),
                   ],
                   totalRepeatCount: 2,
                   pause: const Duration(milliseconds: 400),
+                  onFinished: () {
+                    // Move to the next page after animation finishes
+                    _nextPage();
+                  },
                 ),
               ],
             ),

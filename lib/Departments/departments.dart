@@ -25,10 +25,6 @@ class _DepartmentsState extends State<Departments> {
     }
   }
 
-  Future<void> deleteDepartment(String departmentId) async {
-    await _firestore.collection('departments').doc(departmentId).delete();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,7 +55,7 @@ class _DepartmentsState extends State<Departments> {
               child: Container(
                 padding: EdgeInsets.only(
                     bottom: MediaQuery.of(context).viewInsets.bottom),
-                child: AddDepartment(),
+                child: const AddDepartment(),
               ),
             ),
           );
@@ -91,18 +87,13 @@ class _DepartmentsState extends State<Departments> {
                         style: GoogleFonts.lato(
                             textStyle: TextStyle(fontSize: 20.0)),
                       ),
-                      trailing: IconButton(
-                        icon: Icon(Icons.delete),
-                        onPressed: () {
-                          deleteDepartment(departmentId);
-                        },
-                      ),
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => DepartmentProfile(
                               departmentName: departmentName,
+                              departmentId: departmentId,
                             ),
                           ),
                         );
@@ -123,78 +114,183 @@ class _DepartmentsState extends State<Departments> {
   }
 }
 
-class AddDepartment extends StatelessWidget {
+class AddDepartment extends StatefulWidget {
   const AddDepartment({super.key});
 
   @override
+  _AddDepartmentState createState() => _AddDepartmentState();
+}
+
+class _AddDepartmentState extends State<AddDepartment> {
+  String newDepartmentTitle = "";
+  bool _isLoading = false;
+  final _formKey = GlobalKey<FormState>();
+  List<TextEditingController> positionControllers = [];
+
+  @override
+  void dispose() {
+    // Dispose of the controllers when the widget is disposed
+    for (var controller in positionControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addPositionField() {
+    setState(() {
+      positionControllers.add(TextEditingController());
+    });
+  }
+
+  Future<void> _saveDepartment() async {
+    if (newDepartmentTitle.isNotEmpty) {
+      DocumentReference departmentRef =
+          await FirebaseFirestore.instance.collection('departments').add({
+        'name': newDepartmentTitle,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      for (var controller in positionControllers) {
+        if (controller.text.isNotEmpty) {
+          await departmentRef.collection('positions').add({
+            'name': controller.text,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      Navigator.pop(context);
+    } else {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            content: const Text('Please enter a valid department name.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    String newDepartmentTitle = "";
-    return Container(
-      color: Color(0xFF0A0D22),
-      child: Container(
-        decoration: const BoxDecoration(
-          borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(30.0), topRight: Radius.circular(30)),
-          color: Color(0xFF1D1E33),
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(20.0),
-          child: Center(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                    child: Text(
-                  'Add Department',
-                  style: GoogleFonts.lato(textStyle: TextStyle(fontSize: 20)),
-                )),
-                TextField(
-                  autofocus: true,
-                  textAlign: TextAlign.center,
-                  onChanged: (value) {
-                    newDepartmentTitle = value;
-                  },
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (newDepartmentTitle.isNotEmpty) {
-                      // Check if the department title is not empty before adding
-                      FirebaseFirestore.instance.collection('departments').add({
-                        'name': newDepartmentTitle,
-                        'timestamp': FieldValue.serverTimestamp(),
-                      });
-                      Navigator.pop(context);
-                    } else {
-                      // Handle case where the department title is empty
-                      showDialog(
-                        context: context,
-                        builder: (context) {
-                          return AlertDialog(
-                            content: const Text(
-                                'Please enter a valid department name.'),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                },
-                                child: const Text('OK'),
-                              ),
-                            ],
-                          );
-                        },
+    return Stack(children: [
+      Form(
+        key: _formKey,
+        child: Container(
+          color: Color(0xFF0A0D22),
+          child: Container(
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(30.0),
+                  topRight: Radius.circular(30)),
+              color: Color(0xFF1D1E33),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Center(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                        child: Text(
+                      'Add Department',
+                      style:
+                          GoogleFonts.lato(textStyle: TextStyle(fontSize: 20)),
+                    )),
+                    TextFormField(
+                      decoration:
+                          const InputDecoration(hintText: 'Department Name'),
+                      autofocus: true,
+                      textAlign: TextAlign.center,
+                      onChanged: (value) {
+                        newDepartmentTitle = value;
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please fill in the department';
+                        }
+                      },
+                    ),
+                    const SizedBox(
+                      height: 15,
+                    ),
+                    ...positionControllers.map((controller) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5.0),
+                        child: TextFormField(
+                          controller: controller,
+                          decoration:
+                              const InputDecoration(hintText: 'Position'),
+                          textAlign: TextAlign.center,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please fill in this field';
+                            }
+                          },
+                        ),
                       );
-                    }
-                  },
-                  child: Text(
-                    'Add Department',
-                    style: GoogleFonts.lato(textStyle: TextStyle(fontSize: 18)),
-                  ),
+                    }).toList(),
+                    ElevatedButton(
+                      onPressed: _addPositionField,
+                      child: Text(
+                        'Add Position',
+                        style: GoogleFonts.lato(
+                            textStyle: TextStyle(fontSize: 18)),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 15,
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          // Dismiss the keyboard
+                          FocusScope.of(context).unfocus();
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          try {
+                            await _saveDepartment();
+                          } catch (e) {
+                            print(e);
+                          } finally {
+                            setState(() {
+                              _isLoading = false;
+                            });
+                          }
+                        } else {
+                          print('error');
+                        }
+                      },
+                      child: Text(
+                        'Add Department',
+                        style: GoogleFonts.lato(
+                            textStyle: TextStyle(fontSize: 18)),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
       ),
-    );
+      if (_isLoading)
+        Container(
+          color: Colors.black.withOpacity(0.7),
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+    ]);
   }
 }

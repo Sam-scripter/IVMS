@@ -54,15 +54,11 @@ class Vehicles extends StatelessWidget {
                   for (var value in snapshot.data!.docs) {
                     String vehiclePlate = value['licensePlateNumber'] ?? '';
                     String vehicleId = value.id ?? '';
-                    String odometerReading = value['odometerReading'] ?? '';
                     String chassisNumber = value['chassisNumber'] ?? '';
-                    String driver = value['driver'] ?? '';
                     String insuranceProvider = value['insuranceProvider'] ?? '';
-                    String lastServiceDate = value['lastServiceDate'] ?? '';
-                    String nextServiceDate = value['nextServiceDate'] ?? '';
-                    String primaryUse = value['primaryUse'] ?? '';
                     String makeAndModel = value['makeAndModel'] ?? '';
                     String department = value['department'] ?? '';
+                    String fuelType = value['fuelType'] ?? '';
 
                     vehicles.add(ListTile(
                       title: Text(
@@ -71,28 +67,19 @@ class Vehicles extends StatelessWidget {
                           textStyle: TextStyle(fontSize: 20.0),
                         ),
                       ),
-                      trailing: IconButton(
-                        onPressed: () {
-                          deleteVehicle(vehicleId);
-                        },
-                        icon: const Icon(Icons.delete),
-                      ),
                       onTap: () {
                         Navigator.push(
                             context,
                             MaterialPageRoute(
                                 builder: (context) => VehicleProfile(
-                                    chassisNumber: chassisNumber,
-                                    department: department,
-                                    driver: driver,
-                                    insuranceProvider: insuranceProvider,
-                                    lastServiceDate: lastServiceDate,
-                                    licensePlateNumber: vehiclePlate,
-                                    makeAndModel: makeAndModel,
-                                    nextServiceDate: nextServiceDate,
-                                    odometerReading: odometerReading,
-                                    primaryUse: primaryUse,
-                                    vehicleId: vehicleId)));
+                                      chassisNumber: chassisNumber,
+                                      department: department,
+                                      insuranceProvider: insuranceProvider,
+                                      licensePlateNumber: vehiclePlate,
+                                      makeAndModel: makeAndModel,
+                                      vehicleId: vehicleId,
+                                      fuelType: fuelType,
+                                    )));
                       },
                     ));
                   }

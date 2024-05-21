@@ -54,12 +54,13 @@ class _FuelShipmentsState extends State<FuelShipments> {
             List<Widget> shipmentsWidget = [];
             for (var shipment in snapshot.data!.docs) {
               var value = shipment.data() as Map<String, dynamic>;
-              String supplier = value['supplier'];
+              String documentShipmentId = shipment.id;
               String shipmentId = value['shipmentId'];
+              String supplier = value['supplier'];
               String petrolQuantity = value['petrolQuantity'];
               String dieselQuantity = value['dieselQuantity'];
-              String totalFuelLitres = value['totalFuelLitres'];
-              String totalMoney = value['totalMoney'];
+              String totalFuelLitres = value['totalFuelLitres'].toString();
+              String totalMoney = value['totalMoney'].toString();
               String invoiceNumber = value['invoiceNumber'];
 
               shipmentsWidget.add(GestureDetector(
@@ -68,7 +69,7 @@ class _FuelShipmentsState extends State<FuelShipments> {
                     MaterialPageRoute(
                         builder: (context) => FuelShipmentProfile(
                             supplier: supplier,
-                            shipmentId: shipmentId,
+                            shipmentId: documentShipmentId,
                             petrolQuantity: petrolQuantity,
                             dieselQuantity: dieselQuantity,
                             totalFuel: totalFuelLitres,
