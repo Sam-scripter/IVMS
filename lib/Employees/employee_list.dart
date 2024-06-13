@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:integrated_vehicle_management_system/Screens/Profiles/employeeProfile.dart';
 
@@ -14,9 +15,72 @@ class Employees extends StatefulWidget {
 class _EmployeesState extends State<Employees> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
+  final HttpsCallable _deleteUserCallable =
+      FirebaseFunctions.instance.httpsCallable('deleteUser');
+  final HttpsCallable _disableUserCallable =
+      FirebaseFunctions.instance.httpsCallable('disableUser');
 
-  Future<void> deleteEmployee(String employeeId) async {
-    await _firestore.collection('employees').doc(employeeId).delete();
+  Future<void> disableEmployee(String uid) async {
+    try {
+      final HttpsCallableResult result =
+          await _disableUserCallable.call({'uid': uid});
+      if (result.data['success']) {
+        print('User successfully disabled');
+      } else {
+        print('Error disabling user: ${result.data['error']}');
+      }
+    } catch (e) {
+      print('Error disabling user: $e');
+    }
+  }
+
+  Future<void> deleteEmployeeAccount(String uid) async {
+    try {
+      final HttpsCallableResult result =
+          await _deleteUserCallable.call({'uid': uid});
+      if (result.data['success']) {
+        print('User successfully deleted');
+      } else {
+        print('Error deleting user: ${result.data['error']}');
+      }
+    } catch (e) {
+      print('Error deleting user: $e');
+    }
+  }
+
+  void showDeleteDialog(String uid) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Employee'),
+          content: const Text(
+              'Are you sure you want to delete this employee? This action cannot be undone.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Disable Account'),
+              onPressed: () async {
+                await disableEmployee(uid);
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Delete Account'),
+              onPressed: () async {
+                await deleteEmployeeAccount(uid);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -133,6 +197,12 @@ class _EmployeesState extends State<Employees> {
                               ),
                             ],
                           ),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            showDeleteDialog(employeeId);
+                          },
                         ),
                       ),
                     );

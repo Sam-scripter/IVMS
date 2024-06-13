@@ -4,15 +4,25 @@ import 'package:flutter/services.dart';
 import 'package:integrated_vehicle_management_system/Components/cardContents.dart';
 import 'package:integrated_vehicle_management_system/Components/reusableCard.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:integrated_vehicle_management_system/GeneralReports/FuelOrdersReportService/fuelOrderReportsHome.dart';
+import 'package:integrated_vehicle_management_system/GeneralReports/RepairOrdersReportService/repairOrderReportsHome.dart';
+import 'package:integrated_vehicle_management_system/GeneralReports/generalReportsHome.dart';
 import 'package:integrated_vehicle_management_system/Screens/EmployeeRegLogin/login.dart';
 import 'package:integrated_vehicle_management_system/main.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
-Future<void> updateOnlineStatus(String userId, bool isOnline) async {
+final userId = FirebaseAuth.instance.currentUser?.email;
+Future<void> updateOnlineStatus(String userId) async {
+  // Check internet connection status
+  var connectivityResult = await (Connectivity().checkConnectivity());
+  bool isConnected = connectivityResult != ConnectivityResult.none;
+
+  // Update the online status in Firestore based on connection status
   await FirebaseFirestore.instance
       .collection('employees')
       .doc(userId)
-      .update({'isOnline': isOnline});
+      .update({'isOnline': isConnected ? true : false});
 }
 
 class MyApp extends StatelessWidget {
@@ -64,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     getUserRole();
+    updateOnlineStatus(userId!);
   }
 
   Future<void> getUserRole() async {
@@ -134,19 +145,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      // GestureDetector(
-      //   onTap: () {
-      //     Navigator.pushNamed(context, '/positions');
-      //   },
-      //   child: ReusableCard(
-      //     colour: const Color(0xFF111328),
-      //     cardChild: CardContents(
-      //       icon: Icons.article_outlined,
-      //       colour: Colors.purpleAccent,
-      //       label: 'Positions',
-      //     ),
-      //   ),
-      // ),
       GestureDetector(
         onTap: () => Navigator.pushNamed(context, '/fuelStations'),
         child: ReusableCard(
@@ -206,39 +204,16 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       GestureDetector(
         onTap: () {
-          null;
-        },
-        child: ReusableCard(
-          colour: const Color(0xFF111328),
-          cardChild: CardContents(
-            icon: Icons.report,
-            label: 'Fuel Reports',
-            colour: Colors.blueGrey,
-          ),
-        ),
-      ),
-      GestureDetector(
-        onTap: () {
-          null;
-        },
-        child: ReusableCard(
-          colour: const Color(0xFF111328),
-          cardChild: CardContents(
-            icon: FontAwesomeIcons.bookBookmark,
-            label: 'Repair Reports',
-            colour: Colors.deepPurple,
-          ),
-        ),
-      ),
-      GestureDetector(
-        onTap: () {
-          null;
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const GeneralReportsHome()));
         },
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
             icon: Icons.book,
-            label: 'General Reports',
+            label: 'Reports',
             colour: Colors.teal,
           ),
         ),
@@ -308,13 +283,14 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       GestureDetector(
         onTap: () {
-          null;
+          Navigator.push(context,
+              MaterialPageRoute(builder: (context) => FuelOrderReportsHome()));
         },
         child: ReusableCard(
           colour: const Color(0xFF111328),
           cardChild: CardContents(
             icon: Icons.report,
-            label: 'Fuel Reports',
+            label: 'Fuel Order Reports',
             colour: Colors.blueGrey,
           ),
         ),
@@ -376,7 +352,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       GestureDetector(
         onTap: () {
-          null;
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => RepairOrderReportsHome()));
         },
         child: ReusableCard(
           colour: const Color(0xFF111328),
@@ -444,11 +423,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> buildDriverCards() {
     return [
-      ReusableCard(
-        colour: const Color(0xFF111328),
-        cardChild: CardContents(
-          icon: Icons.gas_meter,
-          label: 'Fuel Orders',
+      GestureDetector(
+        onTap: () => Navigator.pushNamed(context, '/fuelOrders'),
+        child: ReusableCard(
+          colour: const Color(0xFF111328),
+          cardChild: CardContents(
+            icon: Icons.gas_meter,
+            label: 'Fuel Orders',
+          ),
         ),
       ),
       GestureDetector(
@@ -464,7 +446,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       GestureDetector(
         onTap: () {
-          null;
+          Navigator.push(context,
+              MaterialPageRoute(builder: (context) => FuelOrderReportsHome()));
         },
         child: ReusableCard(
           colour: const Color(0xFF111328),
@@ -477,7 +460,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       GestureDetector(
         onTap: () {
-          null;
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => RepairOrderReportsHome()));
         },
         child: ReusableCard(
           colour: const Color(0xFF111328),
@@ -541,13 +527,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          const IconButton(
-            onPressed: null,
-            icon: Icon(
-              Icons.settings,
-              color: Colors.white,
-            ),
-          ),
           StreamBuilder<int>(
             stream: _unreadCountStream(),
             builder: (context, snapshot) {
@@ -569,7 +548,6 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               final userId = FirebaseAuth.instance.currentUser?.email;
               if (userId != null) {
-                updateOnlineStatus(userId, false);
                 _auth.signOut();
                 Navigator.pushReplacement(
                     context,
@@ -713,7 +691,6 @@ class NavigationDrawer extends StatelessWidget {
                 onTap: () async {
                   final userId = FirebaseAuth.instance.currentUser?.email;
                   if (userId != null) {
-                    updateOnlineStatus(userId, false);
                     _auth.signOut();
                     Navigator.pushReplacement(
                         context,

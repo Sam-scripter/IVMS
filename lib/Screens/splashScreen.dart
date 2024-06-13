@@ -1,10 +1,6 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
-import 'package:integrated_vehicle_management_system/Screens/EmployeeRegLogin/alterLogin.dart';
 import 'package:integrated_vehicle_management_system/Screens/EmployeeRegLogin/login.dart';
-import 'changePassword.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

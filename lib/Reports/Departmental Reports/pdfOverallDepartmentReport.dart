@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
@@ -7,7 +8,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class DepartmentReportService {
+class OverallDepartmentReportService {
   Future<Uint8List> generateOverallDepartmentsReport() async {
     final pdf = pw.Document();
 
@@ -131,5 +132,25 @@ class DepartmentReportService {
     await file.writeAsBytes(byteList);
     // Open the PDF file on completion
     await OpenFile.open(filePath);
+
+    // Get a reference to Firebase Storage
+    final storageRef =
+        FirebaseStorage.instance.ref().child('reports/$fileName.pdf');
+
+    // Upload the PDF file
+    final uploadTask = storageRef.putData(byteList);
+
+    // Wait for the upload to complete
+    final snapshot = await uploadTask.whenComplete(() => null);
+
+    // Get the download URL
+    final downloadUrl = await snapshot.ref.getDownloadURL();
+
+    // Save the download URL to Firestore
+    await FirebaseFirestore.instance.collection('reports').add({
+      'fileName': fileName,
+      'url': downloadUrl,
+      'createdAt': Timestamp.now(),
+    });
   }
 }

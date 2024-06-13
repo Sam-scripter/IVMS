@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:integrated_vehicle_management_system/Components/alertDialog.dart';
 import 'package:integrated_vehicle_management_system/Components/functions.dart';
 import 'package:integrated_vehicle_management_system/Components/inputRegister.dart';
 import 'package:integrated_vehicle_management_system/Repair%20Orders/repairOrders.dart';
@@ -127,20 +128,10 @@ class _NewRepairOrderFormState extends State<NewRepairOrderForm> {
           return showDialog(
             context: context,
             builder: (context) {
-              return AlertDialog(
-                title: Text('Error!'),
-                content: Text(
-                    'You do not have a vehicle, this may be due to the fact that you are not a driver!'),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pop(context);
-                    },
-                    child: Text('Ok'),
-                  ),
-                ],
-              );
+              return buildAlertDialog1(
+                  'Error',
+                  'You do not have a vehicle, this may be due to the fact that you are not a driver!',
+                  context);
             },
           );
         }
@@ -214,7 +205,6 @@ class _NewRepairOrderFormState extends State<NewRepairOrderForm> {
 
                           await updateRepairUnreadCount();
                           await updateSuperUserUnreadCount();
-                          await updateRepairUserUnreadCount();
                           await _storeNotification(
                               'Repair Order', driver, customId);
 

@@ -23,13 +23,18 @@ import 'Positions/positions.dart';
 import 'Vehicles/addVehicle.dart';
 import 'Vehicles/vehicles.dart';
 import 'Fuel Stations/fuelStations.dart';
+import 'dart:ui'; // Add this line
 
 final navigatorkey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await FirebaseApi().initNotifications();
+  await Firebase.initializeApp();
+  // await FirebaseAppCheck.instance.activate(
+  //   androidProvider: AndroidProvider.playIntegrity,
+  // );
+  // await FirebaseApi().initNotifications();
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider(
       create: (context) => OrderTypeProvider(),

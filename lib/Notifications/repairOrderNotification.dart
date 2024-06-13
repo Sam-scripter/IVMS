@@ -33,7 +33,6 @@ class _RepairOrderNotificationState extends State<RepairOrderNotification> {
   String categoryProduct = '';
   String selectedCategory = '';
   String selectedItem = '';
-  // List<String> categories = [];
   List<String> items = [];
   String currentEmployeeName = '';
   TextEditingController quantityController = TextEditingController();
@@ -41,6 +40,7 @@ class _RepairOrderNotificationState extends State<RepairOrderNotification> {
   int fetchedProductNumber = 0;
   String selectedCategoryId = '';
   String selectedValue = '';
+  String positionOfEmployee = '';
 
   @override
   void initState() {
@@ -57,6 +57,7 @@ class _RepairOrderNotificationState extends State<RepairOrderNotification> {
     if (snapshot.exists) {
       currentEmployeeName =
           '${snapshot['firstName']} ${snapshot['secondName']}';
+      positionOfEmployee = snapshot['position'];
       setState(() {});
     }
   }
@@ -193,7 +194,8 @@ class _RepairOrderNotificationState extends State<RepairOrderNotification> {
                         const SizedBox(
                           height: 15.0,
                         ),
-                        status == 'submitted'
+                        status == 'submitted' &&
+                                positionOfEmployee == 'Repair Manager'
                             ? Column(
                                 children: [
                                   StreamBuilder<QuerySnapshot>(
@@ -471,7 +473,8 @@ class _RepairOrderNotificationState extends State<RepairOrderNotification> {
                                   ),
                                 ],
                               )
-                            : (status == 'Approved')
+                            : (status == 'Approved' &&
+                                    positionOfEmployee == 'Mechanic')
                                 ? Column(
                                     children: [
                                       ProfileTextBox1(

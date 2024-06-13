@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:typed_data';
-
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 
 import '../../Components/profileTextBox.dart';
 
@@ -24,32 +26,53 @@ class _UserProfileState extends State<UserProfile> {
 
   Uint8List? _image;
   // late User? loggedInUser;
+
   void selectImage() async {
-    Uint8List _img = await pickImage(ImageSource.gallery);
-
-    // Convert image to base64
-    String base64Image = base64Encode(_img);
-
-    // Save image to Firestore
     try {
-      await FirebaseFirestore.instance
-          .collection('employees')
-          .doc(currentUser.email)
-          .update({
-        'image': base64Image,
-        // Add any additional fields you need
-        'ImageCreatedAt':
-            Timestamp.now(), // If you want to timestamp the upload
-      });
+      // Pick an image
+      final ImagePicker _picker = ImagePicker();
+      final XFile? pickedFile =
+          await _picker.pickImage(source: ImageSource.gallery);
 
-      setState(() {
-        _image = _img;
-      });
+      if (pickedFile != null) {
+        Uint8List _img = await pickedFile.readAsBytes();
 
-      // Image saved successfully
-      print('Image saved to Firestore.');
+        // Resize image
+        img.Image decodedImage = img.decodeImage(_img)!;
+        img.Image resizedImage =
+            img.copyResize(decodedImage, width: 800); // Resize to 800px wide
+        Uint8List resizedImageData =
+            Uint8List.fromList(img.encodePng(resizedImage));
+
+        // Upload to Firebase Storage
+        String filePath =
+            'images/${currentUser.email}/${DateTime.now().millisecondsSinceEpoch}.png';
+        UploadTask uploadTask = FirebaseStorage.instance
+            .ref()
+            .child(filePath)
+            .putData(resizedImageData);
+
+        TaskSnapshot snapshot = await uploadTask;
+        String downloadUrl = await snapshot.ref.getDownloadURL();
+
+        // Save download URL to Firestore
+        await FirebaseFirestore.instance
+            .collection('employees')
+            .doc(currentUser.email)
+            .update({
+          'imageUrl': downloadUrl,
+          'ImageCreatedAt': Timestamp.now(),
+        });
+
+        setState(() {
+          _image = _img;
+        });
+
+        print('Image saved to Firebase Storage and URL saved to Firestore.');
+      } else {
+        print('No image selected.');
+      }
     } catch (e) {
-      // Error saving image
       print('Error saving image: $e');
     }
   }
@@ -151,16 +174,25 @@ class _UserProfileState extends State<UserProfile> {
           .get();
 
       if (snapshot.exists) {
-        // Get the base64 string from Firestore
-        String base64Image = snapshot.data()!['image'];
+        // Get the download URL from Firestore
+        String imageUrl = snapshot.data()!['imageUrl'];
 
-        // Update the UI
-        setState(() {
-          // Convert base64 string to Uint8List
-          _image = base64Decode(base64Image);
-        });
+        // Download the image data from the URL
+        http.Response response = await http.get(Uri.parse(imageUrl));
+        if (response.statusCode == 200) {
+          Uint8List imageData = response.bodyBytes;
+
+          // Update the UI
+          setState(() {
+            _image = imageData;
+          });
+
+          print('Image fetched successfully.');
+        } else {
+          print('Failed to download image.');
+        }
       } else {
-        print('Document does not exist');
+        print('Document does not exist.');
       }
     } catch (e) {
       print('Error fetching image: $e');
@@ -311,34 +343,82 @@ class _UserProfileState extends State<UserProfile> {
                     ),
                   );
                   myTabViews.add(
-                    SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18.0, vertical: 15),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ProfileTextBox(
-                              title: 'License Number',
-                              titleValue: userData['licenseNumber'] ?? 'N/A',
-                              function: () => editField('licenseNumber'),
+                    StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('vehicles')
+                          .doc(userData['vehicleId'])
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        Widget data = widget;
+                        if (snapshot.hasData) {
+                          var vehicleData =
+                              snapshot.data!.data() as Map<String, dynamic>;
+
+                          data = SingleChildScrollView(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 18.0, vertical: 15),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  ProfileTextBox1(
+                                    title: 'Number Plate',
+                                    titleValue:
+                                        vehicleData['licensePlateNumber'] ??
+                                            'N/A',
+                                  ),
+                                  const SizedBox(height: 18),
+                                  ProfileTextBox1(
+                                    title: 'Make and Model',
+                                    titleValue:
+                                        vehicleData['makeAndModel'] ?? 'N/A',
+                                  ),
+                                  const SizedBox(height: 18),
+                                  ProfileTextBox1(
+                                    title: 'Fuel Type',
+                                    titleValue:
+                                        vehicleData['fuelType'] ?? 'N/A',
+                                  ),
+                                  const SizedBox(height: 18),
+                                  ProfileTextBox1(
+                                    title: 'Fuel Consumption',
+                                    titleValue: vehicleData['fuelConsumption']
+                                            .toString() ??
+                                        'N/A',
+                                  ),
+                                  SizedBox(
+                                    height: 18,
+                                  ),
+                                  ProfileTextBox1(
+                                    title: 'Chassis Number',
+                                    titleValue:
+                                        vehicleData['chassisNumber'] ?? 'N/A',
+                                  ),
+                                  const SizedBox(height: 18),
+                                  ProfileTextBox1(
+                                    title: 'Department',
+                                    titleValue:
+                                        vehicleData['department'] ?? 'N/A',
+                                  ),
+                                  const SizedBox(height: 18),
+                                  ProfileTextBox1(
+                                    title: 'Insurance Provider',
+                                    titleValue:
+                                        vehicleData['insuranceProvider'] ??
+                                            'N/A',
+                                  ),
+                                  const SizedBox(height: 18),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 18),
-                            ProfileTextBox(
-                              title: 'License Expiry Date',
-                              titleValue:
-                                  userData['licenseExpiryDate'] ?? 'N/A',
-                              function: () => editField('licenseExpiryDate'),
-                            ),
-                            const SizedBox(height: 18),
-                            ProfileTextBox(
-                              title: 'Vehicle Assigned',
-                              titleValue: userData['vehicleAssigned'] ?? 'N/A',
-                              function: () => editField('vehicleAssigned'),
-                            ),
-                          ],
-                        ),
-                      ),
+                          );
+                        } else if (snapshot.hasError) {
+                          return const Center(
+                            child: Text('Error Loading profile data'),
+                          );
+                        }
+                        return data;
+                      },
                     ),
                   );
                 }
@@ -392,7 +472,7 @@ class _UserProfileState extends State<UserProfile> {
                                         backgroundColor: Colors.white60,
                                         radius: 65,
                                         child: Icon(
-                                          Icons.car_crash,
+                                          Icons.person,
                                           size: 60,
                                         ),
                                       ),

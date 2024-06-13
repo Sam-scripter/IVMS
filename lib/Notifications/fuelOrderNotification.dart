@@ -37,9 +37,8 @@ class _FuelOrderNotificationState extends State<FuelOrderNotification> {
   String currentDieselAmount = '';
   double dieselAmount = 0;
   double litresRequired = 0;
-  String odometerReading = '';
-  String retrievedOdometerReading = '';
   String currentEmployeeName = '';
+  String positionOfEmployee = '';
 
   Future<void> notificationDetails() async {
     DocumentReference documentRef = FirebaseFirestore.instance
@@ -62,17 +61,6 @@ class _FuelOrderNotificationState extends State<FuelOrderNotification> {
     }
   }
 
-  Future<void> getOdometerReading() async {
-    DocumentReference documentRef =
-        FirebaseFirestore.instance.collection('vehicles').doc(widget.vehicleId);
-    DocumentSnapshot snapshot = await documentRef.get();
-
-    if (snapshot.exists) {
-      odometerReading = snapshot['odometerReading'];
-      setState(() {});
-    }
-  }
-
   Future<void> getCurrentUser() async {
     final user = FirebaseAuth.instance.currentUser?.email;
     DocumentReference documentRef =
@@ -82,6 +70,7 @@ class _FuelOrderNotificationState extends State<FuelOrderNotification> {
     if (snapshot.exists) {
       currentEmployeeName =
           '${snapshot['firstName']} ${snapshot['secondName']}';
+      positionOfEmployee = snapshot['position'];
       setState(() {});
     }
   }
@@ -96,7 +85,6 @@ class _FuelOrderNotificationState extends State<FuelOrderNotification> {
       print("fuel consumption: $fuelConsumption");
     }
   }
-
 
   void updateFuelAmounts(QuerySnapshot snapshot, String selectedStation) {
     // Find the selected station in the snapshot data
@@ -275,7 +263,7 @@ class _FuelOrderNotificationState extends State<FuelOrderNotification> {
                                   if (fuelConsumption != 0) {
                                     litresRequired = double.parse((double.parse(
                                                 distance.replaceAll(
-                                                    RegExp(r'[^0-9.]'), '')) /
+                                                    RegExp(r'[^0-9.]'), '')) *
                                             fuelConsumption)
                                         .ceil()
                                         .toString());
@@ -352,7 +340,8 @@ class _FuelOrderNotificationState extends State<FuelOrderNotification> {
                       Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 7, vertical: 13.0),
-                        child: status == 'submitted'
+                        child: status == 'submitted' &&
+                                positionOfEmployee == 'Transport Manager'
                             ? Column(
                                 children: [
                                   Material(
@@ -420,8 +409,6 @@ class _FuelOrderNotificationState extends State<FuelOrderNotification> {
                                         } catch (e) {
                                           print(
                                               'currentPetrolAmount is equal to: $currentPetrolAmount');
-                                          // print(
-                                          //     '${currentPetrolAmount}Error parsing currentPetrolAmount: $e');
                                         }
                                       },
                                       minWidth: 400,
@@ -464,7 +451,8 @@ class _FuelOrderNotificationState extends State<FuelOrderNotification> {
                                   ),
                                 ],
                               )
-                            : (status == 'Approved')
+                            : (status == 'Approved' &&
+                                    positionOfEmployee == 'Fuel Attendant')
                                 ? Material(
                                     borderRadius:
                                         BorderRadius.all(Radius.circular(30.0)),
@@ -472,23 +460,11 @@ class _FuelOrderNotificationState extends State<FuelOrderNotification> {
                                     color: Colors.lightBlue,
                                     child: MaterialButton(
                                       onPressed: () async {
-                                        await getOdometerReading();
                                         try {
                                           double newDistance = double.parse(
                                               distance.replaceAll(
                                                   RegExp(r'[^0-9.]'), ''));
-                                          double dodometer =
-                                              double.parse(odometerReading);
-                                          String newOdometerReading =
-                                              (dodometer + newDistance)
-                                                  .toString();
-                                          await FirebaseFirestore.instance
-                                              .collection('vehicles')
-                                              .doc(widget.vehicleId)
-                                              .update({
-                                            'odometerReading':
-                                                newOdometerReading
-                                          });
+
                                           await fuelOrdersCollection
                                               .doc(widget.orderId)
                                               .update({'Status': 'Completed'});
@@ -504,8 +480,8 @@ class _FuelOrderNotificationState extends State<FuelOrderNotification> {
                                           await updateTransportUnreadCount();
                                           Navigator.pop(context);
                                         } catch (e) {
-                                          print(
-                                              'odometer Reading: $odometerReading');
+                                          // print(
+                                          //     'odometer Reading: $odometerReading');
                                         }
                                       },
                                       minWidth: 300,

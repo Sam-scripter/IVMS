@@ -376,7 +376,6 @@ class _StationAllocationProfileState extends State<StationAllocationProfile> {
 
                     await updateSuperUserUnreadCount();
                     await updateTransportUnreadCount();
-                    await updateFuelUserUnreadCount();
 
                     await FirebaseFirestore.instance
                         .collection('Fuel Shipments')

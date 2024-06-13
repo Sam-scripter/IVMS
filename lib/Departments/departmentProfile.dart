@@ -51,17 +51,46 @@ class _DepartmentProfileState extends State<DepartmentProfile> {
 
   Future<void> _addPosition(String positionName) async {
     try {
-      await FirebaseFirestore.instance
+      final QuerySnapshot result = await FirebaseFirestore.instance
           .collection('departments')
           .doc(widget.departmentId)
           .collection('positions')
-          .add({
-        'name': positionName,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+          .where('name', isEqualTo: positionName)
+          .get();
 
-      // Optionally fetch positions again after adding
-      _fetchPositions();
+      final List<DocumentSnapshot> documents = result.docs;
+
+      if (documents.isNotEmpty) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Position Already Exists'),
+              content: Text('The position "$positionName" already exists.'),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        await FirebaseFirestore.instance
+            .collection('departments')
+            .doc(widget.departmentId)
+            .collection('positions')
+            .add({
+          'name': positionName,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        // Optionally fetch positions again after adding
+        _fetchPositions();
+      }
     } catch (e) {
       print(e);
     }
@@ -74,19 +103,41 @@ class _DepartmentProfileState extends State<DepartmentProfile> {
         String newPositionName = '';
 
         return AlertDialog(
-          title: Text('Add New Position'),
+          title: Text(
+            'Add New Position',
+            style: GoogleFonts.lato(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
           content: TextField(
             onChanged: (value) {
               newPositionName = value;
             },
-            decoration: InputDecoration(hintText: "Position Name"),
+            decoration: const InputDecoration(hintText: "Position Name"),
+          ),
+          backgroundColor: Colors.black,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(15.0)),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('Cancel'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.blue,
+                backgroundColor:
+                    Colors.blue.withOpacity(0.1), // button background color
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.lato(
+                  color: Colors.blue,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () {
@@ -95,7 +146,22 @@ class _DepartmentProfileState extends State<DepartmentProfile> {
                   Navigator.of(context).pop();
                 }
               },
-              child: Text('Add'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.blue,
+                backgroundColor:
+                    Colors.blue.withOpacity(0.1), // button background color
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+              child: Text(
+                'Add',
+                style: GoogleFonts.lato(
+                  color: Colors.blue,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         );

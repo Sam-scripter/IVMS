@@ -3,11 +3,13 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import '../Components/profileTextBox.dart';
-import '../Screens/Profiles/userProfile.dart';
+import 'package:image/image.dart' as img;
 
 class VehicleProfile extends StatefulWidget {
   final String chassisNumber;
@@ -47,31 +49,51 @@ class _VehicleProfileState extends State<VehicleProfile> {
   }
 
   void selectImage() async {
-    Uint8List _img = await pickImage(ImageSource.gallery);
-
-    // Convert image to base64
-    String base64Image = base64Encode(_img);
-
-    // Save image to Firestore
     try {
-      await FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .update({
-        'image': base64Image,
-        // Add any additional fields you need
-        'ImageCreatedAt':
-            Timestamp.now(), // If you want to timestamp the upload
-      });
+      // Pick an image
+      final ImagePicker _picker = ImagePicker();
+      final XFile? pickedFile =
+          await _picker.pickImage(source: ImageSource.gallery);
 
-      setState(() {
-        _image = _img;
-      });
+      if (pickedFile != null) {
+        Uint8List _img = await pickedFile.readAsBytes();
 
-      // Image saved successfully
-      print('Image saved to Firestore.');
+        // Resize image
+        img.Image decodedImage = img.decodeImage(_img)!;
+        img.Image resizedImage =
+            img.copyResize(decodedImage, width: 800); // Resize to 800px wide
+        Uint8List resizedImageData =
+            Uint8List.fromList(img.encodePng(resizedImage));
+
+        // Upload to Firebase Storage
+        String filePath =
+            'images/${widget.licensePlateNumber}/${DateTime.now().millisecondsSinceEpoch}.png';
+        UploadTask uploadTask = FirebaseStorage.instance
+            .ref()
+            .child(filePath)
+            .putData(resizedImageData);
+
+        TaskSnapshot snapshot = await uploadTask;
+        String downloadUrl = await snapshot.ref.getDownloadURL();
+
+        // Save download URL to Firestore
+        await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(widget.vehicleId)
+            .update({
+          'imageUrl': downloadUrl,
+          'ImageCreatedAt': Timestamp.now(),
+        });
+
+        setState(() {
+          _image = _img;
+        });
+
+        print('Image saved to Firebase Storage and URL saved to Firestore.');
+      } else {
+        print('No image selected.');
+      }
     } catch (e) {
-      // Error saving image
       print('Error saving image: $e');
     }
   }
@@ -85,16 +107,25 @@ class _VehicleProfileState extends State<VehicleProfile> {
           .get();
 
       if (snapshot.exists) {
-        // Get the base64 string from Firestore
-        String base64Image = snapshot.data()!['image'];
+        // Get the download URL from Firestore
+        String imageUrl = snapshot.data()!['imageUrl'];
 
-        // Update the UI
-        setState(() {
-          // Convert base64 string to Uint8List
-          _image = base64Decode(base64Image);
-        });
+        // Download the image data from the URL
+        http.Response response = await http.get(Uri.parse(imageUrl));
+        if (response.statusCode == 200) {
+          Uint8List imageData = response.bodyBytes;
+
+          // Update the UI
+          setState(() {
+            _image = imageData;
+          });
+
+          print('Image fetched successfully.');
+        } else {
+          print('Failed to download image.');
+        }
       } else {
-        print('Document does not exist');
+        print('Document does not exist.');
       }
     } catch (e) {
       print('Error fetching image: $e');

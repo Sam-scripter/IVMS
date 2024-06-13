@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:integrated_vehicle_management_system/Components/alertDialog.dart';
 import 'package:integrated_vehicle_management_system/Components/inputRegister.dart';
 import 'package:integrated_vehicle_management_system/providers/driverNameProvider.dart';
 import 'package:integrated_vehicle_management_system/providers/orderTypeProvider.dart';
@@ -68,20 +69,10 @@ class _NewFuelOrderFormState extends State<NewFuelOrderForm> {
           return showDialog(
             context: context,
             builder: (context) {
-              return AlertDialog(
-                title: Text('Error!'),
-                content: Text(
-                    'You do not have a vehicle, this may be due to the fact that you are not a driver!'),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pop(context);
-                    },
-                    child: Text('Ok'),
-                  ),
-                ],
-              );
+              return buildAlertDialog1(
+                  'Error!',
+                  'You do not have a vehicle this may be due to the fact that you are not a driver',
+                  context);
             },
           );
         }
@@ -182,23 +173,6 @@ class _NewFuelOrderFormState extends State<NewFuelOrderForm> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // DropdownButton(
-              //     hint: const Text('Select the Fuel Type'),
-              //     isExpanded: true,
-              //     value: fuelTypeDropdownValue,
-              //     padding:
-              //         const EdgeInsets.symmetric(horizontal: 23, vertical: 9),
-              //     items: fuels.map<DropdownMenuItem<String>>((String value) {
-              //       return DropdownMenuItem<String>(
-              //         value: value,
-              //         child: Text(value),
-              //       );
-              //     }).toList(),
-              //     onChanged: (String? value) {
-              //       setState(() {
-              //         fuelTypeDropdownValue = value!;
-              //       });
-              //     }),
               inputRegister(
                   text: const Text('Starting Location'),
                   inputType: TextInputType.text,
@@ -284,9 +258,6 @@ class _NewFuelOrderFormState extends State<NewFuelOrderForm> {
                             'timestamp': FieldValue.serverTimestamp(),
                           });
 
-                          //TODO: SELECTED DOCUMENT ID
-
-                          await updateFuelUserUnreadCount();
                           await updateSuperUserUnreadCount();
                           await updateTransportUnreadCount();
                           await _storeNotification(
@@ -306,17 +277,17 @@ class _NewFuelOrderFormState extends State<NewFuelOrderForm> {
                   ),
                 ),
               ),
-              if (_isLoading)
-                Container(
-                  color: Colors.black.withOpacity(0.7),
-                  child: const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
             ],
           ),
         ),
       ),
+      if (_isLoading)
+        Container(
+          color: Colors.black.withOpacity(0.7),
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
     ]);
   }
 }

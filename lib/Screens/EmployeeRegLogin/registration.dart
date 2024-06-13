@@ -421,7 +421,7 @@ class RegisterFormState extends State<RegisterForm> {
                           padding:
                               EdgeInsets.symmetric(vertical: 9, horizontal: 23),
                           items: vehicleItems,
-                          onChanged: (vehicleValue) {
+                          onChanged: (vehicleValue) async {
                             setState(() {
                               vehicleDropdownValue = vehicleValue!;
 
@@ -433,9 +433,41 @@ class RegisterFormState extends State<RegisterForm> {
                               selectedVehicleId = selectedIndex > 0
                                   ? snapshot.data!.docs[selectedIndex - 1].id
                                   : '';
-                              print(
-                                  'Selected Vehicle Id is: $selectedVehicleId');
                             });
+
+                            // Check if the selected vehicle has a driver
+                            if (selectedVehicleId.isNotEmpty) {
+                              DocumentSnapshot vehicleDoc =
+                                  await FirebaseFirestore.instance
+                                      .collection('vehicles')
+                                      .doc(selectedVehicleId)
+                                      .get();
+
+                              var vehicleData =
+                                  vehicleDoc.data() as Map<String, dynamic>;
+                              bool hasDriver = vehicleData['driver'] != null;
+
+                              if (hasDriver) {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: Text('Driver Allocated'),
+                                      content: Text(
+                                          'A driver is already allocated to this vehicle. Kindly select another'),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          child: Text('OK'),
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              }
+                            }
                           },
                           value: vehicleDropdownValue,
                         );

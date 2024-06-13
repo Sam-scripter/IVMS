@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'dart:ffi';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:integrated_vehicle_management_system/Components/functions.dart';
 import 'package:integrated_vehicle_management_system/Notifications/conversation_Screen.dart';
 import 'package:integrated_vehicle_management_system/Notifications/fuelAllocationNotification.dart';
@@ -26,8 +27,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   String userRole = '';
   String userPosition = '';
   String collectionName = '';
-  bool read = false;
-  String userId = '';
+  late Future<List<Notification>> notificationsFuture;
   Color unreadNotificationColor = Colors.lightGreenAccent;
   late List<Widget> superUserWidgets = [];
   late List<Widget> transportWidgets = [];
@@ -39,6 +39,32 @@ class _NotificationsPageState extends State<NotificationsPage> {
   int currentUnreadCount = 0;
   // Define a set to store tapped notifications
   Set<String> tappedNotifications = {};
+  final currentUser = FirebaseAuth.instance.currentUser!;
+  Uint8List? _image;
+  String? imageUrl;
+  Map<String, Uint8List?> _employeeImages = {};
+
+  Future<void> _fetchLatestMessages() async {
+    for (var employee in _employees) {
+      var lastMessage = await _fetchLastMessage(employee['emailAddress']);
+      employee['lastMessage'] = lastMessage;
+    }
+    _employees.sort((a, b) {
+      var aTimestamp = a['lastMessage']?['timestamp'] ?? Timestamp.now();
+      var bTimestamp = b['lastMessage']?['timestamp'] ?? Timestamp.now();
+      return bTimestamp.compareTo(aTimestamp);
+    });
+  }
+
+  Future<void> _fetchImagesForEmployees() async {
+    for (var employee in _employees) {
+      String imageUrl = employee['imageUrl'] ?? '';
+      if (imageUrl.isNotEmpty) {
+        Uint8List? imageData = await fetchImageFromFirestore(imageUrl);
+        _employeeImages[employee['emailAddress']] = imageData;
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -46,6 +72,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
     _fetchEmployees();
     getUserRole();
     getUnreadCount();
+  }
+
+  Future<Uint8List?> fetchImageFromFirestore(String imageUrl) async {
+    try {
+      http.Response response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      }
+    } catch (e) {
+      print('Error fetching image: $e');
+    }
+    return null;
   }
 
   Future<void> getUnreadCount() async {
@@ -123,6 +161,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
         return document.data() as Map<String, dynamic>;
       }).toList();
 
+      await _fetchLatestMessages();
+      await _fetchImagesForEmployees();
       setState(() {});
 
       print('Employees are fetched');
@@ -190,6 +230,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return collectionName;
   }
 
+  // Map to store read state of each notification
+  Map<String, bool> notificationReadState = {};
+  void updateReadState(String notificationId, bool read) {
+    setState(() {
+      notificationReadState[notificationId] = read;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -200,7 +248,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
             'Notifications',
             style: GoogleFonts.lato(),
           ),
-          centerTitle: false,
           bottom: TabBar(
             indicatorColor: Colors.lightBlue,
             indicatorPadding: const EdgeInsets.symmetric(horizontal: 15),
@@ -212,51 +259,45 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       padding: const EdgeInsets.only(right: 24),
                       child: Text(
                         'Notifications',
-                        style: GoogleFonts.lato(fontSize: 17.0),
+                        style: GoogleFonts.lato(
+                          fontSize: 17.0,
+                        ),
                       ),
                     ),
-                    currentUnreadCount > 0
-                        ? // Display badge if unread count is greater than 0
-                        Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(10),
+                    if (currentUnreadCount > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
                               ),
-                              child: Text(
-                                '$currentUnreadCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                            ],
+                          ),
+                          constraints: BoxConstraints(
+                            minWidth: 20,
+                          ),
+                          child: Text(
+                            currentUnreadCount > 9
+                                ? '9+'
+                                : '$currentUnreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
                             ),
-                          )
-                        : (currentUnreadCount > 9)
-                            ? Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    '$currentUnreadCount+',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : Container(),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -292,14 +333,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         String declinedBy = value['declinedBy'] ?? '';
                         String completedBy = value['completedBy'] ?? '';
 
-                        CollectionReference usersCollection =
-                            notification.reference.collection('users');
-
-                        usersCollection.get().then((usersSnapshot) {
-                          for (var userDoc in usersSnapshot.docs) {
+                        // Fetch the read status for the current user
+                        bool read = true;
+                        var userDocSnapshot = notification.reference
+                            .collection('users')
+                            .doc(user)
+                            .get();
+                        userDocSnapshot.then((doc) {
+                          if (doc.exists) {
                             var userDocValue =
-                                userDoc.data() as Map<String, dynamic>;
-                            userId = userDoc.id;
+                                doc.data() as Map<String, dynamic>;
                             read = userDocValue['read'] ?? false;
                           }
                         });
@@ -308,18 +351,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           notificationWidgets.add(GestureDetector(
                               child: Container(
                             decoration: BoxDecoration(
-                              color: read ? Colors.white : Colors.blue.shade100,
+                              color: read
+                                  ? Colors.blue.withOpacity(0.1)
+                                  : Colors.blue.withOpacity(0.5),
                               borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: read
-                                      ? Colors.grey.withOpacity(0.5)
-                                      : Colors.blue.withOpacity(0.5),
-                                  spreadRadius: 2,
-                                  blurRadius: 5,
-                                  offset: Offset(0, 3),
-                                ),
-                              ],
                             ),
                             margin: const EdgeInsets.symmetric(
                                 vertical: 5, horizontal: 10),
@@ -369,8 +404,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                                     fontSize: 15),
                                               ),
                                 onTap: () async {
-                                  await markNotificationRead(
-                                      notificationId, userId);
+                                  // await markNotificationRead(
+                                  //     notificationId, user!);
+                                  updateReadState(notificationId, true);
                                   setState(() {});
 
                                   await getUnreadCount();
@@ -425,7 +461,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 }),
                           )));
                         } else if (userRole == 'Admin' &&
-                            userPosition == 'TransportManager') {
+                            userPosition == 'Transport Manager') {
                           if (orderId.startsWith('fuelOrder_') ||
                               orderId.startsWith('fuelAllocation_') ||
                               orderId.startsWith('fuel_shipment')) {
@@ -489,8 +525,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                                     fontSize: 15),
                                               ),
                                 onTap: () async {
-                                  await markNotificationRead(
-                                      notificationId, userId);
+                                  // await markNotificationRead(
+                                  //     notificationId, user!);
+                                  updateReadState(notificationId, true);
                                   setState(() {});
 
                                   await getUnreadCount();
@@ -535,19 +572,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: read
-                                      ? Colors.white
-                                      : Colors.blue.shade100,
+                                      ? Colors.blue.withOpacity(0.1)
+                                      : Colors.blue.withOpacity(0.7),
                                   borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: read
-                                          ? Colors.grey.withOpacity(0.5)
-                                          : Colors.blue.withOpacity(0.5),
-                                      spreadRadius: 2,
-                                      blurRadius: 5,
-                                      offset: Offset(0, 3),
-                                    ),
-                                  ],
                                 ),
                                 margin: const EdgeInsets.symmetric(
                                     vertical: 5, horizontal: 10),
@@ -592,8 +619,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 ),
                               ),
                               onTap: () async {
-                                await markNotificationRead(
-                                    notificationId, userId);
+                                // await markNotificationRead(
+                                //     notificationId, user!);
+                                updateReadState(notificationId, true);
                                 setState(() {});
 
                                 await getUnreadCount();
@@ -628,19 +656,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: read
-                                      ? Colors.white
-                                      : Colors.blue.shade100,
+                                      ? Colors.blue.withOpacity(0.1)
+                                      : Colors.blue.withOpacity(0.7),
                                   borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: read
-                                          ? Colors.grey.withOpacity(0.5)
-                                          : Colors.blue.withOpacity(0.5),
-                                      spreadRadius: 2,
-                                      blurRadius: 5,
-                                      offset: Offset(0, 3),
-                                    ),
-                                  ],
                                 ),
                                 margin: const EdgeInsets.symmetric(
                                     vertical: 5, horizontal: 10),
@@ -674,8 +692,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 ),
                               ),
                               onTap: () async {
-                                await markNotificationRead(
-                                    notificationId, userId);
+                                // await markNotificationRead(
+                                //     notificationId, user!);
+                                updateReadState(notificationId, true);
                                 setState(() {});
 
                                 await getUnreadCount();
@@ -716,25 +735,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                   notificationType != 'Fuel Order' &&
                                   userEmail == user ||
                               orderId.startsWith('repairOrder_') &&
-                                  notificationType != 'Repair Order' &&
-                                  userEmail == user) {
+                                  notificationType != 'Repair Order') {
                             notificationWidgets.add(GestureDetector(
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: read
-                                      ? Colors.white
-                                      : Colors.blue.shade100,
+                                      ? Colors.blue.withOpacity(0.1)
+                                      : Colors.blue.withOpacity(0.8),
                                   borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: read
-                                          ? Colors.grey.withOpacity(0.5)
-                                          : Colors.blue.withOpacity(0.5),
-                                      spreadRadius: 2,
-                                      blurRadius: 5,
-                                      offset: Offset(0, 3),
-                                    ),
-                                  ],
                                 ),
                                 margin: const EdgeInsets.symmetric(
                                     vertical: 5, horizontal: 10),
@@ -782,8 +790,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 ),
                               ),
                               onTap: () async {
-                                await markNotificationRead(
-                                    notificationId, userId);
+                                // await markNotificationRead(
+                                //     notificationId, user!);
+                                updateReadState(notificationId, true);
                                 setState(() {});
 
                                 await getUnreadCount();
@@ -847,6 +856,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             final time =
                                 _formatTimestamp(snapshot.data?['timestamp']);
                             final isRead = snapshot.data?['read'] ?? true;
+                            Uint8List? image = _employeeImages[_employees[index]
+                                ['emailAddress']];
 
                             return ConversationTile(
                               name:
@@ -856,6 +867,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               userId: _employees[index]['emailAddress'],
                               userEmail: _employees[index]['emailAddress'],
                               isRead: isRead,
+                              image: image,
                             );
                           }
                         },
@@ -878,23 +890,18 @@ class ConversationTile extends StatefulWidget {
   final String userId;
   final String userEmail;
   final bool isRead;
+  final Uint8List? image;
 
   const ConversationTile({
-    super.key,
+    Key? key,
     required this.name,
     required this.lastMessage,
     required this.time,
     required this.userId,
     required this.userEmail,
     required this.isRead,
-  });
-
-  Future<void> updateOnlineStatus(String userId, bool isOnline) async {
-    await FirebaseFirestore.instance
-        .collection('employees')
-        .doc(userId)
-        .update({'isOnline': isOnline});
-  }
+    this.image,
+  }) : super(key: key);
 
   StreamSubscription<DocumentSnapshot> listenForOnlineStatus(
       String userId, Function(bool) callback) {
@@ -911,7 +918,7 @@ class ConversationTile extends StatefulWidget {
   }
 
   @override
-  State<ConversationTile> createState() => _ConversationTileState();
+  _ConversationTileState createState() => _ConversationTileState();
 }
 
 class _ConversationTileState extends State<ConversationTile> {
@@ -937,36 +944,67 @@ class _ConversationTileState extends State<ConversationTile> {
     super.dispose();
   }
 
+  void showImageDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              widget.image != null
+                  ? Image.memory(widget.image!)
+                  : const Text('No image available'),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Stack(
-        children: [
-          CircleAvatar(
-            backgroundColor: Colors.blue,
-            child: Stack(
-              children: [
-                Center(
-                  child: Text(widget.name[0].toUpperCase(),
-                      style: TextStyle(color: Colors.white)),
-                ),
-              ],
+      leading: GestureDetector(
+        onTap: () {
+          if (widget.image != null) {
+            showImageDialog(context);
+          }
+        },
+        child: Stack(
+          children: [
+            CircleAvatar(
+              backgroundColor: Colors.blue,
+              backgroundImage:
+                  widget.image != null ? MemoryImage(widget.image!) : null,
+              child: widget.image == null
+                  ? Text(
+                      widget.name[0].toUpperCase(),
+                      style: const TextStyle(color: Colors.white),
+                    )
+                  : null,
             ),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Container(
-              height: 12,
-              width: 12,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isOnline ? Colors.green : Colors.red,
-                border: Border.all(color: Colors.white, width: 2),
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                height: 12,
+                width: 12,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isOnline ? Colors.green : Colors.red,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       title: Text(
         widget.name,
@@ -985,10 +1023,10 @@ class _ConversationTileState extends State<ConversationTile> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Padding(
-            padding: EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.only(top: 8),
             child: Text(
               widget.time,
-              style: TextStyle(color: Colors.grey),
+              style: const TextStyle(color: Colors.grey),
             ),
           ),
           Padding(
@@ -1002,11 +1040,9 @@ class _ConversationTileState extends State<ConversationTile> {
                     ),
             ),
           )
-          // You can add additional status indicators here
         ],
       ),
       onTap: () {
-        // Handle tapping on a conversation
         Navigator.push(
             context,
             MaterialPageRoute(

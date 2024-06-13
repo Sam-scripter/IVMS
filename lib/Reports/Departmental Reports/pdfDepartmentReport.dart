@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class DepartmentPdfService {
   Future<Uint8List> generateDepartmentPdf(
@@ -345,10 +346,33 @@ class DepartmentPdfService {
   }
 
   Future<void> savePdfFile(String fileName, Uint8List byteList) async {
+    // Save the PDF file to a temporary directory
     final output = await getTemporaryDirectory();
     var filePath = "${output.path}/$fileName.pdf";
     final file = File(filePath);
     await file.writeAsBytes(byteList);
+
+    // Open the PDF file
     await OpenFile.open(filePath);
+
+    // Get a reference to Firebase Storage
+    final storageRef =
+        FirebaseStorage.instance.ref().child('reports/$fileName.pdf');
+
+    // Upload the PDF file
+    final uploadTask = storageRef.putData(byteList);
+
+    // Wait for the upload to complete
+    final snapshot = await uploadTask.whenComplete(() => null);
+
+    // Get the download URL
+    final downloadUrl = await snapshot.ref.getDownloadURL();
+
+    // Save the download URL to Firestore
+    await FirebaseFirestore.instance.collection('reports').add({
+      'fileName': fileName,
+      'url': downloadUrl,
+      'createdAt': Timestamp.now(),
+    });
   }
 }
