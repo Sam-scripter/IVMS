@@ -23,18 +23,12 @@ import 'Positions/positions.dart';
 import 'Vehicles/addVehicle.dart';
 import 'Vehicles/vehicles.dart';
 import 'Fuel Stations/fuelStations.dart';
-import 'dart:ui'; // Add this line
 
 final navigatorkey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await Firebase.initializeApp();
-  // await FirebaseAppCheck.instance.activate(
-  //   androidProvider: AndroidProvider.playIntegrity,
-  // );
-  // await FirebaseApi().initNotifications();
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider(
       create: (context) => OrderTypeProvider(),
@@ -44,10 +38,6 @@ Future<void> main() async {
     ),
   ], child: const System()));
 }
-
-// void main() {
-//   runApp(const System());
-// }
 
 class System extends StatelessWidget {
   const System({super.key});
@@ -83,26 +73,8 @@ class System extends StatelessWidget {
         '/fuelOrders': (context) => const FuelOrders(),
         '/repairOrders': (context) => const RepairOrders(),
         '/fuelShipments': (context) => const FuelShipments(),
-        // '/store': (context) => const StoreHome(
-        //       categories: [
-        //         'Engine Parts',
-        //         'Brake System',
-        //         'Electrical',
-        //         'Tires and Wheels',
-        //         'Suspensions and Steering',
-        //         'Transmission and Drivetrain',
-        //         'Cooling System',
-        //         'Air Conditioning and Heating',
-        //         'Fluids and Chemicals',
-        //         'Tools and Equipment',
-        //         'Accessories and Upgrades',
-        //         'Service and Maintenance',
-        //       ],
-        //     ),
         '/store': (context) => const StoreHome(),
       },
     );
   }
 }
-
-// 0xFF111328
